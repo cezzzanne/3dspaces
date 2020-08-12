@@ -17,6 +17,8 @@ public class EditingCameraFollow : MonoBehaviour {
         private CharacterEditingScript controller;
         private bool isInside = false;
 
+        public Transform testCharacter;
+
         void Start() {
             // int indexPlaced = 0; // PlayerPrefs.GetInt("CharacterSelected");
             // target = transformList[indexPlaced];
@@ -30,6 +32,9 @@ public class EditingCameraFollow : MonoBehaviour {
             // } else {
             //     Debug.Log("No target to camera");
             // }
+            // EDIT : REMOVE THIS EDIT
+            target = testCharacter;
+            characterController = target.GetComponent<CharacterEditingScript>();
         }
 
         public void SetTarget(Transform character) {

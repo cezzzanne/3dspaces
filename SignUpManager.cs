@@ -33,6 +33,7 @@ public class SignUpManager : MonoBehaviour {
 
     void Awake() {
         string currentCharacter = PlayerPrefs.GetString("CurrentSkin");
+        Debug.Log("current skin : " + currentCharacter);
         if (currentCharacter != "") {
             Debug.Log("character" + currentCharacter);
             SceneManager.LoadScene("MainGame");
@@ -123,7 +124,7 @@ public class SignUpManager : MonoBehaviour {
             LoadingIndicator.SetActive(true);
             nextButton.GetComponent<Button>().interactable = false;
             StartCoroutine(ShowIndicator());
-            StartCoroutine(MakeRequest("create-account", username, password, NextSceneCallBack, LoadingIndicator));
+            StartCoroutine(MakeRequest("create-account", username.ToLower(), password, NextSceneCallBack, LoadingIndicator));
         }
     }
 

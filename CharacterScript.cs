@@ -5,6 +5,8 @@ using Photon.Pun;
 using Photon.Voice.Unity;
 using UnityEngine.UI;
 using UnityEditor;
+using UnityEngine.EventSystems;
+
 namespace Spaces {
     public class CharacterScript : MonoBehaviourPun, IPunObservable, IPunInstantiateMagicCallback {
         Joystick joystick;
@@ -37,15 +39,41 @@ namespace Spaces {
 
         public GameObject glassedPrefab;
         private int inRoomState = -1;
+        private int inPublicRoom;
 
+        private GameObject ChatButton;
 
+        private GameObject toolbar;
 
+        public TouchScreenKeyboard keyboard;
+
+        Transform inputTransform;
+        
+        private bool keyboardActive = false;
+        
+        public GameObject marker;
+ 
+        string[] markerColors = new string[] {"153:0:0", "153:76:0", "153:153:0", "76:153:0", "0:153:153", "0:76:153", "76:0:153", "64:64:64"};
+
+        MapPlayerScript mapPlayerScript;
         public Quaternion TargetRotation() {
             return transform.rotation;
         }
         void Awake() {
+            inPublicRoom = PlayerPrefs.GetInt("isInPublicWorld");
             if (!photonView.IsMine) {
                 otherPlayer = true;
+                if (inPublicRoom == 0) {
+                    int colorIndex = (PhotonNetwork.PlayerList.Length - 2) % 7; // 2 beause 1 is my player and the 2 is the new player
+                    marker = Instantiate(marker);
+                    string[] colorArray = markerColors[colorIndex].Split(':');
+                    Debug.Log("888: " + colorIndex);
+                    marker.GetComponent<Image>().color = new Color(float.Parse(colorArray[0]), float.Parse(colorArray[1]), float.Parse(colorArray[2]));
+                    marker.transform.SetParent(GameObject.FindGameObjectWithTag("PlayerMap").transform);
+                    marker.transform.GetComponent<RectTransform>().offsetMax = new Vector2(0, 0);
+                    marker.transform.GetComponent<RectTransform>().offsetMin = new Vector2(0, 0);
+                    mapPlayerScript = marker.GetComponent<MapPlayerScript>();
+                }
             } else {
                 mainCam = Resources.Load("Main Camera") as GameObject;
                 mainCam = Instantiate(mainCam);
@@ -56,32 +84,44 @@ namespace Spaces {
                 // StartCoroutine(ChangeSkin());
                 PV = transform.GetComponent<PhotonView>();
                 PV.RPC("RPC_ChangeCharacterName", RpcTarget.AllBuffered, PlayerPrefs.GetString("username"), PV.ViewID);
-                // transform.GetComponentInChildren<Canvas>().GetComponentInChildren<Text>().transform.Rotate(new Vector3(40, 180, 0), Space.Self);
+                if (inPublicRoom == 1) {
+                    GameObject.FindGameObjectWithTag("Canvas").GetComponent<InputHandler>().SetTarget(this);
+                } else {
+                    marker = Instantiate(marker);
+                    marker.GetComponent<Image>().color = new Color(0, 153, 0);
+                    marker.transform.SetParent(GameObject.FindGameObjectWithTag("PlayerMap").transform);
+                    marker.transform.GetComponent<RectTransform>().offsetMax = new Vector2(0, 0);
+                    marker.transform.GetComponent<RectTransform>().offsetMin = new Vector2(0, 0);
+                    mapPlayerScript = marker.GetComponent<MapPlayerScript>();
+                }
+
             }
         }
 
-        // IEnumerator ChangeSkin() {
-            // yield return new WaitForSeconds(1);
-            // GameObject glasses = Instantiate(glassedPrefab) as GameObject;
-            // glasses.transform.parent = transform;
-            // glasses.transform.localPosition = glasses.transform.position;
-            // glasses.transform.localScale = glasses.transform.lossyScale;
-            // GameObject[] characters = Resources.LoadAll<GameObject>("Characters");
-            // for (int i = 0; i < 3; i++) {
-            //     GameObject newText = Instantiate(usernameText);
-            //     newText.transform.SetParent(characters[i].transform);
-            //     PrefabUtility.SaveAsPrefabAsset(characters[i], "Assets/Resources/Characters/" + characters[i].name +  ".prefab");
-            // }
-            // string assetPath =  "Assets/Resources/characterMedium.prefab";
-            // GameObject contentsRoot = PrefabUtility.LoadPrefabContents(assetPath);
-            // gameObject.transform.GetChild(0).GetComponent<SkinnedMeshRenderer>().material = mate;
-            // PrefabUtility.SaveAsPrefabAssetAndConnect(gameObject, "Assets/Resources/newPrefab.prefab", InteractionMode.UserAction);
-            // PrefabUtility.UnloadPrefabContents(game);
-        // }
+        public void SendNewMessage(string message) {
+            PV.RPC("RPC_ReceiveMessage", RpcTarget.All, message, PV.ViewID);
+        }
+
+        void OpenKeyboard() {
+            // need to instantiate input field by resource load
+            joystick.gameObject.SetActive(false);
+            keyboard = TouchScreenKeyboard.Open("", TouchScreenKeyboardType.Default, false, false, false);   
+            // Testing on unity editor    
+            toolbar.SetActive(true);
+            toolbar.transform.position = new Vector3(toolbar.transform.position.x, 15, toolbar.transform.position.z);
+            inputTransform = toolbar.transform.GetChild(0);
+            keyboardActive = true;
+            EventSystem.current.SetSelectedGameObject(inputTransform.gameObject, null);
+        }
 
         public bool OtherPlayer() {
             return otherPlayer;
         }
+
+        public void DestroyMarker() {
+            Destroy(marker);
+        }
+
         void Start() {
             joystick = FindObjectOfType<Joystick>();
             targetRotation = transform.rotation;
@@ -120,6 +160,12 @@ namespace Spaces {
             Run();
         }
 
+        void LateUpdate() {
+            if ((inPublicRoom == 0)) {
+                mapPlayerScript.MoveMarker(transform.position.x / 1000f, transform.position.z / 1000);
+            }
+        }
+
         void Run() {
             Vector3 newPos = transform.position + (transform.forward * forwardInput * forwardVel * Time.deltaTime * 55);
             // transform.position = newPos; //Vector3.Lerp(transform.position, newPos, Time.deltaTime * 10f);
@@ -141,11 +187,16 @@ namespace Spaces {
 
           public static void RefreshInstance(ref CharacterScript player, CharacterScript prefab ) {
               Vector3 pos;
-              if (PlayerPrefs.HasKey("editingPosition")) {
-                string[] positions = PlayerPrefs.GetString("editingPosition").Split(':');
-                pos = new Vector3(float.Parse(positions[0]), float.Parse(positions[1]), float.Parse(positions[2]));
+              int publicWorld = PlayerPrefs.GetInt("isInPublicWorld");
+              if (publicWorld == 1) {
+                  pos = new Vector3(447.5852f, 0, 335.4253f);
               } else {
-                  pos = new Vector3(365.3f, 0.0f, 438.7f);
+                if (PlayerPrefs.HasKey("editingPosition")) {
+                    string[] positions = PlayerPrefs.GetString("editingPosition").Split(':');
+                    pos = new Vector3(float.Parse(positions[0]), float.Parse(positions[1]) + 2, float.Parse(positions[2]));
+                } else {
+                    pos = new Vector3(365.3f, 0.0f, 438.7f);
+                }
               }
             Quaternion rot = Quaternion.identity;
             if (player != null) {
@@ -219,12 +270,33 @@ namespace Spaces {
 
         [PunRPC]
         void RPC_ChangeCharacterName(string name, int pvID) {
-            TMPro.TextMeshProUGUI playerName = PhotonView.Find(pvID).transform.GetChild(3).GetChild(0).GetComponent<TMPro.TextMeshProUGUI>();
-            if (photonView.IsMine) {
+            // 0 = private; 1 = public
+            inPublicRoom = PlayerPrefs.GetInt("isInPublicWorld");
+            Debug.Log("in public room: s" + inPublicRoom);
+            GameObject nameCanvas;
+            if (inPublicRoom == 0) {
+                nameCanvas = PhotonView.Find(pvID).transform.GetChild(3).gameObject;
+            } else {
+                nameCanvas = PhotonView.Find(pvID).transform.GetChild(4).gameObject;
+            }
+            nameCanvas.SetActive(true);
+            TMPro.TextMeshProUGUI playerName = nameCanvas.transform.GetChild(0).GetChild(0).GetComponent<TMPro.TextMeshProUGUI>();
+            if (photonView.IsMine && (inPublicRoom == 0)) {
                 Destroy(playerName);
                 return;
             }
+
             playerName.text = "@" + name;
+        }
+
+        [PunRPC]
+        void RPC_ReceiveMessage(string message, int pvID) {
+            // 0 = private; 1 = public
+            if (inPublicRoom == 0) {
+                return;
+            }
+            TMPro.TextMeshProUGUI chatCanvas = PhotonView.Find(pvID).transform.GetChild(3).GetChild(1).GetChild(0).GetComponent<TMPro.TextMeshProUGUI>();
+            chatCanvas.text = message;
         }
     }
 }

@@ -17,16 +17,16 @@ namespace Spaces {
 
 
         public GameObject SliderComponent;
-        private Slider slider;
 
         public GameObject UnMutedButton;
         public GameObject MutedButton;
+        int publicRoom;
 
 
         void Start() {
+            publicRoom = PlayerPrefs.GetInt("isInPublicWorld");
             GameObject Voice = GameObject.FindGameObjectWithTag("Voice");
             PunVoice = Voice.GetComponent<PhotonVoiceNetwork>();
-            slider = SliderComponent.GetComponent<Slider>();
         }
 
         public void Mute() {
@@ -44,6 +44,12 @@ namespace Spaces {
 
         void Update() {
             if (PunVoice.ClientState == Photon.Realtime.ClientState.Joined && (!hasActivated)) {
+                if (publicRoom == 1) {
+                    recorder = PunVoice.PrimaryRecorder;
+                    PunVoice.PrimaryRecorder.TransmitEnabled = false;
+                    Destroy(this);
+                    return;
+                }
                 hasActivated = true;
                 UnMutedButton.SetActive(true);
                 recorder = PunVoice.PrimaryRecorder;

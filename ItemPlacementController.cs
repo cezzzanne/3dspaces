@@ -152,7 +152,7 @@ namespace Spaces {
                 if (contactWithCollider && !collider.isTrigger) {
                     Debug.Log("COLLIDING WITH : " + collider.gameObject.name);
                     Vector3 pos = currentPlaceableObject.transform.position;
-                    pos = target.position + (target.forward * ((maxWidthObject * 1.1f)  + characterWidth + 0.5f));
+                    pos = target.position + (target.forward * ((maxWidthObject * 1.2f)  + characterWidth + 0.5f));
                     // pos.y = (collider.bounds.center.y + collider.bounds.extents.y + collider.transform.position.y - 0.0001f);
                     float length = collider.transform.localScale.x * ((BoxCollider)collider).size.x;
                     float width = collider.transform.localScale.z * ((BoxCollider)collider).size.z;
@@ -165,10 +165,10 @@ namespace Spaces {
                     currentPlaceableObject.transform.position = pos;  
                 } else {
                     Debug.Log("Hitting floor");
-                    currentPlaceableObject.transform.position = target.position + (target.forward * ((maxWidthObject * 1.1f)  + characterWidth + 0.5f));
+                    currentPlaceableObject.transform.position = target.position + (target.forward * ((maxWidthObject * 1.2f)  + characterWidth + 0.5f));
                 }  
             } else {
-                currentPlaceableObject.transform.position = target.position + (target.forward * ((maxWidthObject * 1.1f)  + characterWidth + 0.5f));
+                currentPlaceableObject.transform.position = target.position + (target.forward * ((maxWidthObject * 1.2f)  + characterWidth + 0.5f));
             }
         }
 
@@ -201,7 +201,7 @@ namespace Spaces {
                     // target.localScale = new Vector3(0, 0.5f, 0);
                     Vector3 tempPos = target.position;
                     tempPos.y = 0;
-                    currentPlaceableObject.transform.position = target.position + (target.forward * ((maxWidthObject * 1.1f)  + characterWidth + 0.5f));
+                    currentPlaceableObject.transform.position = target.position + (target.forward * ((maxWidthObject * 1.2f)  + characterWidth + 0.5f));
                     foreach(Material m in meshRenderer.materials) {
                         m.shader = Shader.Find("Unlit/Transparent Cutout");
                     }

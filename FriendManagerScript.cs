@@ -131,7 +131,7 @@ namespace Spaces {
         }
 
         public void SubmitForm() {
-            string text = AddFriendInputField.GetComponent<Text>().text;
+            string text = AddFriendInputField.GetComponent<Text>().text.ToLower();
             if (text.Trim() == "") {
                 AddFriendForm.SetActive(false);
                 AddFriendButton.SetActive(true);
@@ -170,13 +170,15 @@ namespace Spaces {
                 Debug.Log(www.error);
             } else {
                 string response = www.downloadHandler.text;
-                Debug.Log("success");
                 AddFriendResponseData friendData = JsonUtility.FromJson<AddFriendResponseData>(response);
-                GameObject newButton = Instantiate(buttonPrefab) as GameObject;
-                newButton.transform.GetChild(0).GetComponent<Text>().text = friendUsername;
-                newButton.GetComponent<Button>().onClick.AddListener(()=> {friendFunc(friendData.friendID, friendUsername);});
-                newButton.transform.SetParent(panel.transform);   
-                newButton.transform.localScale = new Vector3(1, 1, 1);   
+                Debug.Log(friendData.success);
+                if (friendData.success == "true") {
+                    GameObject newButton = Instantiate(buttonPrefab) as GameObject;
+                    newButton.transform.GetChild(0).GetComponent<Text>().text = friendUsername;
+                    newButton.GetComponent<Button>().onClick.AddListener(()=> {friendFunc(friendData.friendID, friendUsername);});
+                    newButton.transform.SetParent(panel.transform);   
+                    newButton.transform.localScale = new Vector3(1, 1, 1);  
+                } 
                 yield return response;
             }
         }
