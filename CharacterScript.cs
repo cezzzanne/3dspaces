@@ -22,7 +22,6 @@ namespace Spaces {
 
         GameObject mainCam;
 
-        public int id;
 
         CharacterController characterController;
 
@@ -50,51 +49,39 @@ namespace Spaces {
         Transform inputTransform;
         
         private bool keyboardActive = false;
+
+        private GameObject itemLoader;
         
-        public GameObject marker;
  
-        string[] markerColors = new string[] {"153:0:0", "153:76:0", "153:153:0", "76:153:0", "0:153:153", "0:76:153", "76:0:153", "64:64:64"};
 
         MapPlayerScript mapPlayerScript;
         public Quaternion TargetRotation() {
             return transform.rotation;
         }
+        // need to 1) find why character dissapeared when i went into room and clicked ui
+        // 2) better sign up ui
+        // 3) enable purchase of items
         void Awake() {
             inPublicRoom = PlayerPrefs.GetInt("isInPublicWorld");
             if (!photonView.IsMine) {
                 otherPlayer = true;
-                if (inPublicRoom == 0) {
-                    int colorIndex = (PhotonNetwork.PlayerList.Length - 2) % 7; // 2 beause 1 is my player and the 2 is the new player
-                    marker = Instantiate(marker);
-                    string[] colorArray = markerColors[colorIndex].Split(':');
-                    Debug.Log("888: " + colorIndex);
-                    marker.GetComponent<Image>().color = new Color(float.Parse(colorArray[0]), float.Parse(colorArray[1]), float.Parse(colorArray[2]));
-                    marker.transform.SetParent(GameObject.FindGameObjectWithTag("PlayerMap").transform);
-                    marker.transform.GetComponent<RectTransform>().offsetMax = new Vector2(0, 0);
-                    marker.transform.GetComponent<RectTransform>().offsetMin = new Vector2(0, 0);
-                    mapPlayerScript = marker.GetComponent<MapPlayerScript>();
-                }
             } else {
                 mainCam = Resources.Load("Main Camera") as GameObject;
                 mainCam = Instantiate(mainCam);
                 PlayerFollow cameraScript = mainCam.GetComponent<PlayerFollow>();
                 cameraScript.SetCameraTarget(transform);
                 GameObject itemControllerObject = GameObject.FindGameObjectWithTag("ItemPlacementController") as GameObject;
-                id = PhotonNetwork.PlayerList.Length - 1;
-                // StartCoroutine(ChangeSkin());
                 PV = transform.GetComponent<PhotonView>();
                 PV.RPC("RPC_ChangeCharacterName", RpcTarget.AllBuffered, PlayerPrefs.GetString("username"), PV.ViewID);
+                itemLoader = GameObject.FindGameObjectWithTag("ItemLoader");
                 if (inPublicRoom == 1) {
                     GameObject.FindGameObjectWithTag("Canvas").GetComponent<InputHandler>().SetTarget(this);
+                    itemLoader.GetComponent<ItemLoaderStore>().SetCamera(mainCam.GetComponent<PlayerFollow>());
                 } else {
-                    marker = Instantiate(marker);
-                    marker.GetComponent<Image>().color = new Color(0, 153, 0);
-                    marker.transform.SetParent(GameObject.FindGameObjectWithTag("PlayerMap").transform);
-                    marker.transform.GetComponent<RectTransform>().offsetMax = new Vector2(0, 0);
-                    marker.transform.GetComponent<RectTransform>().offsetMin = new Vector2(0, 0);
-                    mapPlayerScript = marker.GetComponent<MapPlayerScript>();
+                    GameObject itemController = GameObject.FindGameObjectWithTag("ItemPlacementController");
+                    itemController.GetComponent<ItemPlacementController>().SetTarget(transform);
+                    itemLoader.GetComponent<ItemLoader>().SetCamera(mainCam.GetComponent<PlayerFollow>());
                 }
-
             }
         }
 
@@ -118,9 +105,7 @@ namespace Spaces {
             return otherPlayer;
         }
 
-        public void DestroyMarker() {
-            Destroy(marker);
-        }
+       
 
         void Start() {
             joystick = FindObjectOfType<Joystick>();
@@ -160,11 +145,6 @@ namespace Spaces {
             Run();
         }
 
-        void LateUpdate() {
-            if ((inPublicRoom == 0)) {
-                mapPlayerScript.MoveMarker(transform.position.x / 1000f, transform.position.z / 1000);
-            }
-        }
 
         void Run() {
             Vector3 newPos = transform.position + (transform.forward * forwardInput * forwardVel * Time.deltaTime * 55);
@@ -191,12 +171,13 @@ namespace Spaces {
               if (publicWorld == 1) {
                   pos = new Vector3(447.5852f, 0, 335.4253f);
               } else {
-                if (PlayerPrefs.HasKey("editingPosition")) {
-                    string[] positions = PlayerPrefs.GetString("editingPosition").Split(':');
-                    pos = new Vector3(float.Parse(positions[0]), float.Parse(positions[1]) + 2, float.Parse(positions[2]));
-                } else {
-                    pos = new Vector3(365.3f, 0.0f, 438.7f);
-                }
+                // if (PlayerPrefs.HasKey("editingPosition")) {
+                //     string[] positions = PlayerPrefs.GetString("editingPosition").Split(':');
+                //     pos = new Vector3(float.Parse(positions[0]), float.Parse(positions[1]) + 2, float.Parse(positions[2]));
+                // } else {
+                //     pos = new Vector3(365.3f, 0.0f, 438.7f);
+                // }
+                pos = new Vector3(2, 0, 2);
               }
             Quaternion rot = Quaternion.identity;
             if (player != null) {
@@ -245,21 +226,39 @@ namespace Spaces {
             if (otherPlayer) {
                 return;
             }
-            if (inRoomState == -1) {
-                if (other.gameObject.name == "floorFull") {
-                    mainCam.GetComponent<PlayerFollow>().ChangeCameraViewpoint(true);
-                    inRoomState = 1;
-                }
-            } else if (inRoomState == 0) {
-                if (other.gameObject.name == "floorFull") {
-                    mainCam.GetComponent<PlayerFollow>().ChangeCameraViewpoint(true);
-                    inRoomState = 1;
-                }
-            } else {
-                if (other.gameObject.name == "door") {
-                    mainCam.GetComponent<PlayerFollow>().ChangeCameraViewpoint(false);
-                    inRoomState = 0;
-                }
+            if (inRoomState == -1 && other.gameObject.name == "door") {
+                mainCam.GetComponent<PlayerFollow>().ChangeCameraViewpoint(true);
+                inRoomState = 1;
+            } else if (inRoomState == 1 && other.gameObject.name == "door") {
+                mainCam.GetComponent<PlayerFollow>().ChangeCameraViewpoint(false);
+                inRoomState = -1;
+            } else if (other.gameObject.name == "store") {
+                itemLoader.GetComponent<ItemLoaderStore>().ActivateStore(true);
+            }
+            // if (inRoomState == -1) {
+            //     if (other.gameObject.name == "Road") {
+            //         mainCam.GetComponent<PlayerFollow>().ChangeCameraViewpoint(true);
+            //         inRoomState = 1;
+            //     }
+            // } else if (inRoomState == 0) {
+            //     if (other.gameObject.name == "Road") {
+            //         mainCam.GetComponent<PlayerFollow>().ChangeCameraViewpoint(true);
+            //         inRoomState = 1;
+            //     }
+            // } else {
+            //     if (other.gameObject.name == "door") {
+            //         mainCam.GetComponent<PlayerFollow>().ChangeCameraViewpoint(false);
+            //         inRoomState = 0;
+            //     }
+            // }
+        }
+
+        private void OnTriggerExit(Collider other) {
+            if (otherPlayer) {
+                return;
+            }
+            if (other.gameObject.name == "store") {
+                itemLoader.GetComponent<ItemLoaderStore>().ActivateStore(false);
             }
         }
 
@@ -295,7 +294,7 @@ namespace Spaces {
             if (inPublicRoom == 0) {
                 return;
             }
-            TMPro.TextMeshProUGUI chatCanvas = PhotonView.Find(pvID).transform.GetChild(3).GetChild(1).GetChild(0).GetComponent<TMPro.TextMeshProUGUI>();
+            TMPro.TextMeshProUGUI chatCanvas = PhotonView.Find(pvID).transform.GetChild(4).GetChild(1).GetChild(0).GetComponent<TMPro.TextMeshProUGUI>();
             chatCanvas.text = message;
         }
     }

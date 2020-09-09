@@ -78,13 +78,14 @@ public class CharacterEditingScript : MonoBehaviour {
         }  
         private void OnTriggerEnter(Collider other) {
             // -1 is not assigned ; 0 is no and ; 1 is in room
+            Debug.Log("444: entered trigger: " + other.gameObject.name);
             if (inRoomState == -1) {
-                if (other.gameObject.name == "floorFull") {
+                if (other.gameObject.name == "Road") {
                     mainCam.GetComponent<EditingCameraFollow>().ChangeCameraViewpoint(true);
                     inRoomState = 1;
                 }
             } else if (inRoomState == 0) {
-                if (other.gameObject.name == "floorFull") {
+                if (other.gameObject.name == "Road") {
                     mainCam.GetComponent<EditingCameraFollow>().ChangeCameraViewpoint(true);
                     inRoomState = 1;
                 }

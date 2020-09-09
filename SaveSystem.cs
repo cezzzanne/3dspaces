@@ -76,14 +76,6 @@ public class SaveSystem: MonoBehaviour {
                 GameObject prefab = Resources.Load<GameObject>("TownPrefabs/" + name);
                 GameObject currentItem = Instantiate(prefab) as GameObject;
                 // Rigidbody rBody = currentItem.AddComponent<Rigidbody>();
-                // rBody.mass = 10;
-                // rBody.drag = 10;
-                // rBody.angularDrag = 0.99f;
-                // rBody.useGravity = false;
-                // rBody.isKinematic = true;
-                // rBody.freezeRotation = true;
-                // currentItem.transform.localScale = currentItem.transform.localScale * 3;
-                // BoxCollider mCollider = currentItem.AddComponent<BoxCollider>();
                 currentItem.transform.position = new Vector3(item.x_pos, item.y_pos, item.z_pos);
                 currentItem.transform.Rotate(currentItem.transform.rotation.x, item.rotation_y, currentItem.transform.rotation.z);
                 currentItem.transform.SetParent(modifiedTerrain.transform);

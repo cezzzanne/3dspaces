@@ -33,7 +33,7 @@ namespace Spaces {
                 if (yPos < 3.0f) {
                     yPos = 0;
                 }
-                transform.position = new Vector3(float.Parse(pos[0]), yPos, float.Parse(pos[2]));
+                transform.position = new Vector3(3 ,0, 3); //new Vector3(float.Parse(pos[0]), yPos, float.Parse(pos[2]));
             }
              if (Character) {
                 Character.SetActive(true);

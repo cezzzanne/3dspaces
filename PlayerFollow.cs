@@ -7,7 +7,7 @@ namespace Spaces {
         Transform target;
         public float lookSmooth = 0.09f;
         public Vector3 offsetFromTarget = new Vector3(0, 4.8f, -6f);
-        public float xTilt = 16;
+        public float xTilt = 10;
 
         Vector3 destination = Vector3.zero;
 
@@ -18,11 +18,14 @@ namespace Spaces {
 
         private CharacterScript controller;
 
+        private bool selectingItem = false;
+
 
 
         public void SetCameraTarget(Transform t) {
             target = t;
             transform.LookAt(target);
+            transform.rotation = Quaternion.Euler(0, 0, 0);
             transform.Rotate(new Vector3(xTilt, 0, 0), Space.Self);
             if (target != null) {
                 if (target.GetComponent<CharacterScript>() != null) {
@@ -36,10 +39,21 @@ namespace Spaces {
         }
 
         private void LateUpdate() {
-           if (target) {
+           if (target && !selectingItem) {
             MoveToTarget();
             LookAtTarget();
            }
+        }
+
+        public void ToggleItemLoader() {
+            selectingItem = !selectingItem;
+            if (selectingItem) {
+                transform.position = new Vector3(15, 52, 13);
+                transform.rotation = Quaternion.Euler(0, 0, 0);
+            } else {
+                transform.rotation = Quaternion.Euler(0, 0, 0);
+                transform.Rotate(new Vector3(xTilt, 0, 0), Space.Self);
+            }
         }
         
         void MoveToTarget() {

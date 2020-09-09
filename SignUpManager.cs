@@ -27,16 +27,19 @@ public class SignUpManager : MonoBehaviour {
     private bool inCharacterSelectionScene = false;
     public GameObject AvatarSelection;
 
+    private float t = 0.0f;
+    float speed = 4.0F;
+
+    public GameObject usernameLogo, passwordLogo, emailLogo, errorButton;
+
 
     // camera start x pos - 368.21 ; y - 5.54 ; z - 434.57; xrot - 15; yrot - 90
     // camera avatar creation = xpos - 368.21; y- 4.2; z - 434.57; xrot - 15; yrot - 0.366
 
     void Awake() {
         string currentCharacter = PlayerPrefs.GetString("CurrentSkin");
-        Debug.Log("current skin : " + currentCharacter);
         if (currentCharacter != "") {
-            Debug.Log("character" + currentCharacter);
-            SceneManager.LoadScene("MainGame");
+            // SceneManager.LoadScene("MainGame");
         }
     }
 
@@ -50,18 +53,24 @@ public class SignUpManager : MonoBehaviour {
         nextField = usernameField;
         mainCamera.transform.position = new Vector3(368.21f, 5.54f, 434.57f);
         mainCamera.transform.rotation = Quaternion.Euler(15, 90, 0);
-        nextButton.SetActive(false);
+        nextButton.SetActive(true);
         nextAvatarButton.SetActive(false);
         prevAvatarButton.SetActive(false);
         LoadingIndicator.SetActive(false);
     }
 
-    public void RotateCamera() {
+    public IEnumerator RotateCam() {
+        t += Time.deltaTime;
         mainCamera.transform.position = new Vector3(368.21f, 4.2f, 434.57f);
         Quaternion desiredRot = Quaternion.Euler(15, 0.366f, 0);
-        for(float t = 0f; t < 1; t += Time.deltaTime/5) {
-             mainCamera.transform.rotation = Quaternion.Slerp(mainCamera.transform.rotation, desiredRot, t);
-         }
+        Quaternion tempRot = mainCamera.transform.rotation;
+        Quaternion desiredPlace = Quaternion.Euler(mainCamera.transform.rotation.x + 15, mainCamera.transform.rotation.y + 0.366f, mainCamera.transform.rotation.z); // Quaternion.Slerp(mainCamera.transform.rotation, desiredRot);
+        while (mainCamera.transform.rotation.x < desiredPlace.x) {
+            yield return new WaitForSeconds(0.01f);
+            Quaternion to = Quaternion.Lerp(mainCamera.transform.rotation, desiredPlace, t / 1);
+            mainCamera.transform.rotation = to;
+        }
+
     }
 
     void SetCaretsInputs() {
@@ -79,9 +88,9 @@ public class SignUpManager : MonoBehaviour {
         if (currentStep == 0) {
             AnimateFields();
         }
-        if (username.Length > 2 && password.Length > 5) {
-            nextButton.SetActive(true);
-        }
+        // if (username.Length > 2 && password.Length > 5) {
+        //     nextButton.SetActive(true);
+        // }
     }
 
     void AnimateFields() {
@@ -89,10 +98,10 @@ public class SignUpManager : MonoBehaviour {
             usernameField.transform.position = new Vector3(usernameField.transform.position.x, usernameInitialY+0.2f*Mathf.Sin(1*Time.time), usernameField.transform.position.z);
         } else if (currentInputField == 1) {
             emailField.transform.position = new Vector3(emailField.transform.position.x, emailInitialY+0.2f*Mathf.Sin(1*Time.time), emailField.transform.position.z);
-        } else if (currentInputField == 2) {
+        } else {
             passwordField.transform.position = new Vector3(passwordField.transform.position.x, passwordInitialY+0.2f*Mathf.Sin(1*Time.time), passwordField.transform.position.z);
         }
-    }
+   }
 
     public void SetInput(int type) {
         currentInputField = type;
@@ -100,31 +109,60 @@ public class SignUpManager : MonoBehaviour {
 
     public void FillForm(string input) {
         if (currentInputField == 0) {
-            Debug.Log("username : " + input);
             username = input;
         } else if (currentInputField == 1) {
-            Debug.Log("email : " + input);
             email = input;
         } else {
-            Debug.Log("password : " + input);
             password = input;
            
         }
     }
 
+    IEnumerator PhaseOutField(GameObject field, GameObject nextField) {
+        GameObject leaving = (currentInputField == 1) ? usernameLogo : emailLogo;
+        GameObject entering = (currentInputField == 1)? emailLogo : passwordLogo;
+        t += Time.deltaTime;
+        entering.transform.position = new Vector3(entering.transform.position.x, entering.transform.position.y - 10, entering.transform.position.z);
+        nextField.transform.position = new Vector3(nextField.transform.position.x, nextField.transform.position.y, nextField.transform.position.z + 10);
+        nextField.SetActive(true);
+        entering.SetActive(true);
+        float target = field.transform.position.z + 10;
+        while (field.transform.position.z < target) {
+            yield return new WaitForSeconds(0.01f);
+            float res = Mathf.Lerp(field.transform.position.z, field.transform.position.z + 25, t / speed);
+            float res2 = Mathf.Lerp(nextField.transform.position.z, nextField.transform.position.z - 25, t / speed);
+            float logoLeaving = Mathf.Lerp(leaving.transform.position.y, leaving.transform.position.y + 25, t/ speed);
+            float logoEntering = Mathf.Lerp(entering.transform.position.y, entering.transform.position.y + 25, t/ speed);
+            field.transform.position = new Vector3(field.transform.position.x, field.transform.position.y, res);
+            nextField.transform.position = new Vector3(nextField.transform.position.x, nextField.transform.position.y, res2);
+            entering.transform.position = new Vector3(entering.transform.position.x, logoEntering, entering.transform.position.z);
+            leaving.transform.position = new Vector3(leaving.transform.position.x, logoLeaving, leaving.transform.position.z);
+        }
+    }
+
     public void GoToCharacterSelection() {
-        if (inCharacterSelectionScene) {
-            string characterSelected = AvatarSelection.GetComponent<AvatarCreation>().SelectedCharacter();
-            Debug.Log("selected character :  " + characterSelected);
-            PlayerPrefs.SetString("CurrentSkin", characterSelected);
-            SceneManager.LoadScene("MainGame");
-        } else {
-            Debug.Log("finished it");
-            nextButton.transform.GetChild(0).gameObject.SetActive(false);
-            LoadingIndicator.SetActive(true);
-            nextButton.GetComponent<Button>().interactable = false;
-            StartCoroutine(ShowIndicator());
-            StartCoroutine(MakeRequest("create-account", username.ToLower(), password, NextSceneCallBack, LoadingIndicator));
+        if (currentInputField == 0) {
+            currentInputField = 1;
+            StartCoroutine(PhaseOutField(usernameField, emailField));
+        } else if (currentInputField == 1) {
+            currentInputField = 2;
+            StartCoroutine(PhaseOutField(emailField, passwordField));
+        } else if (currentInputField == 2) {
+            Debug.Log("finished form");
+            if (inCharacterSelectionScene) {
+                string characterSelected = AvatarSelection.GetComponent<AvatarCreation>().SelectedCharacter();
+                Debug.Log("selected character :  " + characterSelected);
+                PlayerPrefs.SetString("CurrentSkin", characterSelected);
+                PlayerPrefs.SetString("myWorldType", "MainGame");
+                SceneManager.LoadScene("MainGame");
+            } else {
+                Debug.Log("finished it");
+                nextButton.transform.GetChild(0).gameObject.SetActive(false);
+                LoadingIndicator.SetActive(true);
+                nextButton.GetComponent<Button>().interactable = false;
+                StartCoroutine(ShowIndicator());
+                StartCoroutine(MakeRequest("create-account", username.ToLower(), password, NextSceneCallBack, LoadingIndicator, errorButton));
+            }
         }
     }
 
@@ -138,7 +176,7 @@ public class SignUpManager : MonoBehaviour {
     }
 
     public void NextSceneCallBack() {
-        RotateCamera();
+        StartCoroutine(RotateCam());
         LoadingIndicator.SetActive(false);
         nextButton.GetComponent<Button>().interactable = true;
         nextButton.transform.GetChild(0).gameObject.SetActive(true);
@@ -149,7 +187,7 @@ public class SignUpManager : MonoBehaviour {
 
     public delegate void GoToNextScene();
 
-    static IEnumerator MakeRequest(string url, string username, string password, GoToNextScene callback, GameObject loadingIndicator) {
+    static IEnumerator MakeRequest(string url, string username, string password, GoToNextScene callback, GameObject loadingIndicator, GameObject errorButton) {
         WWWForm form = new WWWForm();
         form.AddField("username", username);
         form.AddField("password", password);
@@ -165,12 +203,12 @@ public class SignUpManager : MonoBehaviour {
             JsonResponse data = JsonUtility.FromJson<JsonResponse>(response);
             if (data.success == "false") {
                 Debug.Log(data.message);
+                errorButton.SetActive(true);
             } else {
                 Debug.Log(response);
                 loadingIndicator.GetComponent<Slider>().value = 1;
-                string location = "365.285:0.499218:438.6511"; 
-                PlayerPrefs.SetString("positionInWorld", location);
                 PlayerPrefs.SetString("myRoomID", data.userID);
+                PlayerPrefs.SetString("currentWorldType", "MainGame");
                 PlayerPrefs.SetString("currentRoomID", data.userID);
                 PlayerPrefs.SetString("username", username);
                 callback();

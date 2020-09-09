@@ -19,6 +19,9 @@ public class AvatarCreation : MonoBehaviour {
     public GameObject characterName;
     Text characterText;
 
+    // 1) finsih log in (should be pretty fast)
+    // 2) figure out character initial world (make space smaller, maybe even inside a spaceship?)
+
     void Start() {
         skinnedRenderer = character.GetComponent<SkinnedMeshRenderer>();
         // need to assign array of material

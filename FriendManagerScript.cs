@@ -8,7 +8,7 @@ namespace Spaces {
 
     [System.Serializable]
     public  struct AddFriendResponseData {
-        public string success, friendID;
+        public string success, friendID, world_type;
 
         
     }
@@ -26,6 +26,7 @@ namespace Spaces {
     [System.Serializable]
     public  struct FriendJson {
         public string id;
+        public string world_type;
         public FriendJsonUsername user;
 
 
@@ -61,10 +62,19 @@ namespace Spaces {
 
         public GameObject ClosePanelButton;
         
+        public GameObject UIManager;
+        UIManagerScript uiManagerScript;
+
+        public GameObject itemLoaderGO;
+
+        ItemLoader itemLoader;
+
         void Start() {
             Debug.Log("USERNAMEEE : " + PlayerPrefs.GetString("username"));
             managerScript = GameManager.GetComponent<GameManagerScript>();
             StartCoroutine(GetFriends("https://circles-parellano.herokuapp.com/api/get-world-friends", PrefabFriendButton, FriendCallback, FriendListContent));
+            uiManagerScript = UIManager.GetComponent<UIManagerScript>();
+            itemLoader = itemLoaderGO.GetComponent<ItemLoader>();
         }
 
         IEnumerator GetFriends(string url, GameObject buttonPrefab, FriendButtonClickCallback friendFunc, GameObject panel) {
@@ -81,7 +91,7 @@ namespace Spaces {
                 foreach (FriendJson friend in friendData.data.friends) {
                     GameObject newButton = Instantiate(buttonPrefab) as GameObject;
                     newButton.transform.GetChild(0).GetComponent<Text>().text = "@"+friend.user.username;
-                    newButton.GetComponent<Button>().onClick.AddListener(()=> {friendFunc(friend.id, friend.user.username);});
+                    newButton.GetComponent<Button>().onClick.AddListener(()=> {friendFunc(friend.id, friend.user.username, friend.world_type);});
                     newButton.transform.SetParent(panel.transform);     
                     newButton.transform.localScale = new Vector3(1, 1, 1);          
                 }
@@ -89,31 +99,12 @@ namespace Spaces {
             }
         }
 
-        // Update is called once per frame
-        void Update() {
-            
-        }
 
         void TogglePanel(bool setOpen) {
             if (setOpen) {
-                Panel.SetActive(true);
-                EditingButton.SetActive(false);
-                HomeButton.SetActive(false);
-                ContactListButton.SetActive(false);
-                ClosePanelButton.SetActive(true);
-                SpeakerButton.SetActive(false);
+                uiManagerScript.TogglePanel(setOpen);
             } else {
-                Panel.SetActive(false);
-                if (PlayerPrefs.GetString("currentRoomID") == PlayerPrefs.GetString("myRoomID")) {
-                    EditingButton.SetActive(true);
-                    HomeButton.SetActive(false);
-                } else {
-                    EditingButton.SetActive(false);
-                    HomeButton.SetActive(true);
-                }
-                ContactListButton.SetActive(true);
-                ClosePanelButton.SetActive(false);
-                SpeakerButton.SetActive(true);
+                uiManagerScript.TogglePanel(setOpen);
             }
         }
 
@@ -139,25 +130,18 @@ namespace Spaces {
             }
             StartCoroutine(AddFriend(text, "https://circles-parellano.herokuapp.com/api/add-friend", FriendListContent, PrefabFriendButton, FriendCallback));
         }
-        public delegate void FriendButtonClickCallback(string friendID, string username);
+        public delegate void FriendButtonClickCallback(string friendID, string username, string worldType);
 
-        public void FriendCallback(string friendID, string username) {
-            Panel.SetActive(false);
-            HomeButton.SetActive(true);
-            EditingButton.SetActive(false);
-            ContactListButton.SetActive(true);
-            SpeakerButton.SetActive(true);
-            ClosePanelButton.SetActive(false);
-            managerScript.GoToRoom(friendID, username); 
+        public void FriendCallback(string friendID, string username, string worldType) {
+            uiManagerScript.FriendCallback();
+            managerScript.GoToRoom(friendID, username, worldType); 
         }
 
         public void GoBackHome() {
-            Panel.SetActive(false);
-            HomeButton.SetActive(false);
-            EditingButton.SetActive(true);
-            ContactListButton.SetActive(true);
-            SpeakerButton.SetActive(true);
-            managerScript.GoToRoom(PlayerPrefs.GetString("myRoomID"), "");
+            uiManagerScript.GoHomeCallback();
+            string roomID = PlayerPrefs.GetString("myRoomID");
+            StartCoroutine(itemLoader.LoadPurchasedItems(roomID));
+            managerScript.GoToRoom(roomID, "", PlayerPrefs.GetString("myWorldType"));
         }
 
         IEnumerator AddFriend(string friendUsername, string url, GameObject panel, GameObject buttonPrefab, FriendButtonClickCallback friendFunc) {
@@ -175,7 +159,7 @@ namespace Spaces {
                 if (friendData.success == "true") {
                     GameObject newButton = Instantiate(buttonPrefab) as GameObject;
                     newButton.transform.GetChild(0).GetComponent<Text>().text = friendUsername;
-                    newButton.GetComponent<Button>().onClick.AddListener(()=> {friendFunc(friendData.friendID, friendUsername);});
+                    newButton.GetComponent<Button>().onClick.AddListener(()=> {friendFunc(friendData.friendID, friendUsername, friendData.world_type);});
                     newButton.transform.SetParent(panel.transform);   
                     newButton.transform.localScale = new Vector3(1, 1, 1);  
                 } 

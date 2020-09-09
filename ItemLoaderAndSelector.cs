@@ -16,6 +16,7 @@ public class ItemLoaderAndSelector : MonoBehaviour {
 
     public GameObject objectTitle;
 
+
     void Start() {
         prefabList = new List<GameObject>();
         itemNames = new List<string>();
@@ -31,7 +32,7 @@ public class ItemLoaderAndSelector : MonoBehaviour {
             instPrefab.transform.SetParent(transform);
             instPrefab.transform.localPosition = new Vector3(0, 1, 0);
             float width = instPrefab.GetComponent<BoxCollider>().size.x * Screen.width/ Screen.height; // basically height * screen aspect ratio
-            instPrefab.transform.localScale = Vector3.one * width / 6f;
+            instPrefab.transform.localScale = Vector3.one * width / 2f;
             instPrefab.transform.localScale = instPrefab.transform.localScale * (1f / instPrefab.GetComponent<BoxCollider>().size.x);
             instPrefab.transform.Rotate(new Vector3(-20, 0, 0), Space.Self);
         }
@@ -85,7 +86,7 @@ public class ItemLoaderAndSelector : MonoBehaviour {
         objectTitle.GetComponent<Text>().text = itemNames[currIndex];
         transform.rotation = Quaternion.Euler(0, 0, 0);
         Bounds itemBounds = prefabList[currIndex].GetComponent<BoxCollider>().bounds;
-        float cameraDistance = 4.0f; // Constant factor
+        float cameraDistance = 6.0f; // Constant factor
         Vector3 objectSizes = itemBounds.max - itemBounds.min;
         float objectSize = Mathf.Max(objectSizes.x, objectSizes.y, objectSizes.z);
         float cameraView = 2.0f * Mathf.Tan(0.5f * Mathf.Deg2Rad * mainCamera.GetComponent<Camera>().fieldOfView); // Visible height 1 meter in front

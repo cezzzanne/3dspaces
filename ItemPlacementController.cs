@@ -60,24 +60,36 @@ namespace Spaces {
         public GameObject rotateButton;
         public GameObject goBackButton;
         public GameObject editAvatarButton;
+
+        public GameObject uiManager;
+
+        private UIManagerScript uiManagerScript;
         
 
         void Start() {
             myRoomID = PlayerPrefs.GetString("myRoomID");
-            int indexPlaced = 0;//PlayerPrefs.GetInt("CharacterSelected");
-            target = transformList[indexPlaced];
-            string itemString = PlayerPrefs.GetString("CurrentItem");
-            saveSystem.LoadSpace(myRoomID, modifiedTerrain, HandleNewObj);
+            uiManagerScript = uiManager.GetComponent<UIManagerScript>();
+            // int indexPlaced = 0;//PlayerPrefs.GetInt("CharacterSelected");
+            // target = transformList[indexPlaced];
+            // // string itemString = PlayerPrefs.GetString("CurrentItem");
+            // // saveSystem.LoadSpace(myRoomID, modifiedTerrain, HandleNewObj);
         }
 
-        void HandleNewObj() {
-            Debug.Log("handling new object");
-            string itemString = PlayerPrefs.GetString("CurrentItem");
-            characterList.GetComponent<CharacterSelection>().SetPosition();
-            if (itemString != "") {
-                GameObject prefab = Resources.Load<GameObject>("TownPrefabs/" + itemString);
-                HandleNewObjectHotKey(prefab);
-            }
+        public void SetTarget(Transform character) {
+            target = character;
+        }
+
+        public void HandleNewObj(string item) {
+            // Debug.Log("handling new object");
+            // string itemString = PlayerPrefs.GetString("CurrentItem");
+            // characterList.GetComponent<CharacterSelection>().SetPosition();
+            // if (itemString != "") {
+            //     GameObject prefab = Resources.Load<GameObject>("TownPrefabs/" + itemString);
+            //     HandleNewObjectHotKey(prefab);
+            // }
+            GameObject prefab = Resources.Load<GameObject>("TownPrefabs/" + item);
+            HandleNewObjectHotKey(prefab);
+            
         }
 
 
@@ -109,13 +121,14 @@ namespace Spaces {
                 currentPlaceableObject.transform.position = new Vector3(currentPlaceableObject.transform.position.x, 0, currentPlaceableObject.transform.position.z);
             }
             currentPlaceableObject = null;
-            startEditingButton.SetActive(true);
-            clearButton.SetActive(false);
-            placeButton.SetActive(false);
-            goBackButton.SetActive(true);
-            rotateButton.SetActive(false);
-            editAvatarButton.SetActive(true);
-            PlayerPrefs.DeleteKey("CurrentItem");
+            // startEditingButton.SetActive(true);
+            // clearButton.SetActive(false);
+            // placeButton.SetActive(false);
+            // goBackButton.SetActive(true);
+            // rotateButton.SetActive(false);
+            // editAvatarButton.SetActive(true);
+            // PlayerPrefs.DeleteKey("CurrentItem");
+            uiManagerScript.PlacedItem();
             target.localScale = new Vector3(0.5f, 0.5f, 0.5f);
             saveSystem.SaveSpace(terrain, target, int.Parse(myRoomID));
         }
@@ -138,7 +151,7 @@ namespace Spaces {
             if (colliders.Length > 0) {
                 Collider collider = null;
                 for (int i = 0; i < colliders.Length; i++) {
-                    if (colliders[i].gameObject.name != "Terrain" && colliders[i].gameObject != currentPlaceableObject.gameObject && colliders[i].gameObject.name != "Small-House(Clone)") {
+                    if (colliders[i].gameObject.name != "MainGame-Terrain(Clone)" && colliders[i].gameObject != currentPlaceableObject.gameObject && colliders[i].gameObject.name != "Small-House(Clone)") {
                         contactWithCollider = true;
                         if (collider != null) {
                             Collider temp = colliders[i];
@@ -175,13 +188,14 @@ namespace Spaces {
         public void HandleNewObjectHotKey(GameObject prefab) {
             // when a button presses I can hardcode what number each item is (find more elegant way) 
             if (currentPlaceableObject == null) {
-                    startEditingButton.SetActive(false);
-                    goBackButton.SetActive(false);
-                    clearButton.SetActive(true);
-                    placeButton.SetActive(true);
-                    rotateButton.SetActive(true);
-                    editAvatarButton.SetActive(false);
-                    hideListOfObjects();
+                    // startEditingButton.SetActive(false);
+                    // goBackButton.SetActive(false);
+                    // clearButton.SetActive(true);
+                    // placeButton.SetActive(true);
+                    // rotateButton.SetActive(true);
+                    // editAvatarButton.SetActive(false);
+                    // hideListOfObjects();
+                    uiManagerScript.IsPlacingItem();
                     currentPlaceableObject = Instantiate(prefab) as GameObject;
                     Rigidbody rBody = currentPlaceableObject.GetComponent<Rigidbody>();
                     // rBody.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
@@ -211,8 +225,13 @@ namespace Spaces {
 
         public void RemoveCurrentPlaceableObject() {
             Destroy(currentPlaceableObject);
-            PlayerPrefs.DeleteKey("CurrentItem");
-            ShowListOfObjects();
+            uiManagerScript.PlacedItem();
+            // PlayerPrefs.DeleteKey("CurrentItem");
+            // ShowListOfObjects();
+        }
+
+        public void SetTerrain(GameObject ter) {
+            terrain = ter;
         }
 
         public void ShowListOfObjects() {

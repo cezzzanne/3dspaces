@@ -5,6 +5,7 @@ using Photon.Pun;
 using UnityEngine.SceneManagement;
 using Photon.Voice.PUN;
 using Photon.Voice.Unity;
+using System;
 
 namespace Spaces {
     public class GameManagerScript : MonoBehaviourPunCallbacks {
@@ -29,14 +30,19 @@ namespace Spaces {
         public GameObject ModTerrainPrefab;
 
         public SaveSystem SaveSystem;
-        public GameObject EditRoomButton;
-        public GameObject GoBackHomeButton;
         public GameObject LoadingScreen;
         string currentUsername;
 
         public GameObject CurrentRoomUsername;
         private bool initialConnection = true;
         private bool reconnect = false;
+
+        private GameObject currentTerrain;
+        private GameObject currentPrebuiltTerrain;
+        private string currentWorldType;
+        private string previousWorldType;
+        public GameObject ItemController;
+        // world type is based on the type of world the user posseses (3 kinds) // roomID is to join the same photon room based on player id
 
 
         void Awake() {
@@ -70,6 +76,7 @@ namespace Spaces {
 
         void Start() {
             LoadingScreen.SetActive(true);
+            currentWorldType =  PlayerPrefs.GetString("currentWorldType");
             roomIDToJoin = PlayerPrefs.GetString("currentRoomID");
             string currentSkin = PlayerPrefs.GetString("CurrentSkin");
             GameObject playerPrefab = Resources.Load<GameObject>("Characters/" + currentSkin);
@@ -162,13 +169,18 @@ namespace Spaces {
             // maybe don't need to refresh instance?
         }
 
-        public void GoToRoom(string newRoomID, string username) {
+        public void GoToRoom(string newRoomID, string username, string worldType) {
+            // change currentWorldType to parameter of the next world type and previous world type to current before
+            // worldType = "TestWorld";
+            previousWorldType = currentWorldType;
+            currentWorldType = worldType;
             LoadingScreen.SetActive(true);
             if (roomIDToJoin == newRoomID) {
                 return;
             }
             PlayerPrefs.SetString("currentRoomID", newRoomID);
             PlayerPrefs.SetString("currentRoomUsername", username);
+            PlayerPrefs.SetString("currentWorldType", worldType);
             PlayerPrefab.DestroyCamera();
             roomIDToJoin = newRoomID;
             currentUsername = username;
@@ -178,13 +190,22 @@ namespace Spaces {
 
         public void SetUpNewTerrain() {
             string myRoom = PlayerPrefs.GetString("myRoomID");
+            // check if same terrain type as previous (first check its not null // actually maybe itll just default to false if null)
+            if (currentWorldType != previousWorldType) {
+                if (currentTerrain != null && currentPrebuiltTerrain != null) {
+                    Destroy(currentPrebuiltTerrain);
+                    Destroy(currentTerrain);
+                }
+                Debug.Log("1010: " + currentWorldType);
+                GameObject terrain = Resources.Load<GameObject>("Worlds/" + currentWorldType + "-Terrain");
+                GameObject prebuiltTerrain = Resources.Load<GameObject>("Worlds/" + currentWorldType + "-PrebuiltTerrain");
+                currentTerrain = Instantiate(terrain);
+                ItemController.GetComponent<ItemPlacementController>().SetTerrain(currentTerrain);
+                currentPrebuiltTerrain = Instantiate(prebuiltTerrain);
+            }
             if (myRoom == roomIDToJoin) {
-                EditRoomButton.SetActive(true);
-                GoBackHomeButton.SetActive(false);
                 CurrentRoomUsername.SetActive(false);
             } else {
-                EditRoomButton.SetActive(false);
-                GoBackHomeButton.SetActive(true);
                 CurrentRoomUsername.SetActive(true);
                 if (currentUsername == null) {
                     currentUsername = PlayerPrefs.GetString("currentRoomUsername");
@@ -204,7 +225,6 @@ namespace Spaces {
             Debug.Log("player leaving");
             base.OnPlayerLeftRoom(otherPlayer);
             CharacterScript otherScript = (otherPlayer.TagObject as GameObject).GetComponent<CharacterScript>();
-            otherScript.DestroyMarker();
             // otherScript.DestroyCamera();
             // ChatManager manager = ChatManager.GetComponent<ChatManager>();
             // if (manager.id > otherScript.id) {

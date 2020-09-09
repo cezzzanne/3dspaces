@@ -67,7 +67,6 @@ namespace Spaces {
         }
 
         public void CloseTyping() {
-            Debug.Log("is closing");
             toolbar.SetActive(false);
             joystick.SetActive(true);
         }
