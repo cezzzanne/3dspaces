@@ -33,9 +33,6 @@ public class SaveSystem: MonoBehaviour {
 
 
     public void SaveSpace(GameObject terrain, Transform player, int id) {
-        // BinaryFormatter formatter = new BinaryFormatter();
-        // string path = Application.persistentDataPath + "/space.oasis";
-        // FileStream stream = new FileStream(path, FileMode.Create);
         SpaceData data = new SpaceData(terrain, player, id);
         StartCoroutine(MakeRequestSaveData("https://circles-parellano.herokuapp.com/api/save-world", data));
     } 
@@ -73,9 +70,15 @@ public class SaveSystem: MonoBehaviour {
             TerrainData terrainData = SpacesJson.terrain_data;
             foreach(JSONItem item in terrainData.items) {
                 string name = item.name.Substring(0, item.name.Length - 7);
-                GameObject prefab = Resources.Load<GameObject>("TownPrefabs/" + name);
-                GameObject currentItem = Instantiate(prefab) as GameObject;
-                // Rigidbody rBody = currentItem.AddComponent<Rigidbody>();
+                GameObject prefab;
+                GameObject currentItem;
+                try {
+                    prefab = Resources.Load<GameObject>("TownPrefabs/" + name);
+                    currentItem = Instantiate(prefab) as GameObject;
+                } catch {
+                    prefab = Resources.Load<GameObject>("StoreItems/" + name);
+                    currentItem = Instantiate(prefab) as GameObject;
+                }
                 currentItem.transform.position = new Vector3(item.x_pos, item.y_pos, item.z_pos);
                 currentItem.transform.Rotate(currentItem.transform.rotation.x, item.rotation_y, currentItem.transform.rotation.z);
                 currentItem.transform.SetParent(modifiedTerrain.transform);
@@ -90,17 +93,5 @@ public class SaveSystem: MonoBehaviour {
 
     public void LoadSpace(string roomID, GameObject modifiedTerrain, Action HandleNewObj) {
         StartCoroutine(MakeRequestLoadData("https://circles-parellano.herokuapp.com/api/get-world", roomID, modifiedTerrain, HandleNewObj));
-        
-        // string path = Application.persistentDataPath + "/space.oasis";
-        // if (File.Exists(path)) {
-        //     BinaryFormatter formatter = new BinaryFormatter();
-        //     FileStream stream = new FileStream(path, FileMode.Open);
-        //     SpaceData data = formatter.Deserialize(stream) as SpaceData;
-        //     stream.Close();
-        //     return data;
-        // } else {
-        //     Debug.Log("NO FILE FOUND IN " + path);
-        //     return null;
-        // }
     }
 }

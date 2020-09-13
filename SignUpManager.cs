@@ -39,7 +39,7 @@ public class SignUpManager : MonoBehaviour {
     void Awake() {
         string currentCharacter = PlayerPrefs.GetString("CurrentSkin");
         if (currentCharacter != "") {
-            // SceneManager.LoadScene("MainGame");
+            SceneManager.LoadScene("MainGame");
         }
     }
 

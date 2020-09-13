@@ -196,7 +196,6 @@ namespace Spaces {
                     Destroy(currentPrebuiltTerrain);
                     Destroy(currentTerrain);
                 }
-                Debug.Log("1010: " + currentWorldType);
                 GameObject terrain = Resources.Load<GameObject>("Worlds/" + currentWorldType + "-Terrain");
                 GameObject prebuiltTerrain = Resources.Load<GameObject>("Worlds/" + currentWorldType + "-PrebuiltTerrain");
                 currentTerrain = Instantiate(terrain);

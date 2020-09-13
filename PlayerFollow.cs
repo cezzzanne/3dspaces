@@ -6,7 +6,7 @@ namespace Spaces {
     public class PlayerFollow : MonoBehaviour {
         Transform target;
         public float lookSmooth = 0.09f;
-        public Vector3 offsetFromTarget = new Vector3(0, 4.8f, -6f);
+        public Vector3 offsetFromTarget = new Vector3(0, 4.8f, -6.5f);
         public float xTilt = 10;
 
         Vector3 destination = Vector3.zero;
@@ -40,8 +40,8 @@ namespace Spaces {
 
         private void LateUpdate() {
            if (target && !selectingItem) {
-            MoveToTarget();
-            LookAtTarget();
+               MoveToTarget();
+               LookAtTarget();
            }
         }
 
@@ -55,6 +55,17 @@ namespace Spaces {
                 transform.Rotate(new Vector3(xTilt, 0, 0), Space.Self);
             }
         }
+
+        public void ToggleCharacterChange() {
+            selectingItem = !selectingItem;
+            if (selectingItem) {
+                transform.position = new Vector3(23.7f, 91, 19);
+                transform.rotation = Quaternion.Euler(0, 0, 0);
+            } else {
+                transform.rotation = Quaternion.Euler(0, 0, 0);
+                transform.Rotate(new Vector3(xTilt, 0, 0), Space.Self);
+            }
+        }
         
         void MoveToTarget() {
             destination = characterController.TargetRotation() * offsetFromTarget;
@@ -62,9 +73,8 @@ namespace Spaces {
             transform.position = destination;
         }
          public void ChangeCameraViewpoint(bool insideRoom) {
-            Debug.Log("change viewpoint");
             if (insideRoom) {
-                offsetFromTarget = new Vector3(0, 3.2f, -3f);
+                offsetFromTarget = new Vector3(0, 3.2f, -3.5f);
             } else {
                 offsetFromTarget = new Vector3(0, 4.8f, -6.5f);
             }

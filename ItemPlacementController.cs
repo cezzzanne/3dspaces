@@ -87,7 +87,7 @@ namespace Spaces {
             //     GameObject prefab = Resources.Load<GameObject>("TownPrefabs/" + itemString);
             //     HandleNewObjectHotKey(prefab);
             // }
-            GameObject prefab = Resources.Load<GameObject>("TownPrefabs/" + item);
+            GameObject prefab = Resources.Load<GameObject>(item);
             HandleNewObjectHotKey(prefab);
             
         }
@@ -195,7 +195,6 @@ namespace Spaces {
                     // rotateButton.SetActive(true);
                     // editAvatarButton.SetActive(false);
                     // hideListOfObjects();
-                    uiManagerScript.IsPlacingItem();
                     currentPlaceableObject = Instantiate(prefab) as GameObject;
                     Rigidbody rBody = currentPlaceableObject.GetComponent<Rigidbody>();
                     // rBody.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;

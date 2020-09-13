@@ -51,16 +51,13 @@ namespace Spaces {
         private bool keyboardActive = false;
 
         private GameObject itemLoader;
-        
- 
 
+        private bool myRoom;
+        private bool wardrobeOpen = false;
         MapPlayerScript mapPlayerScript;
         public Quaternion TargetRotation() {
             return transform.rotation;
         }
-        // need to 1) find why character dissapeared when i went into room and clicked ui
-        // 2) better sign up ui
-        // 3) enable purchase of items
         void Awake() {
             inPublicRoom = PlayerPrefs.GetInt("isInPublicWorld");
             if (!photonView.IsMine) {
@@ -78,9 +75,13 @@ namespace Spaces {
                     GameObject.FindGameObjectWithTag("Canvas").GetComponent<InputHandler>().SetTarget(this);
                     itemLoader.GetComponent<ItemLoaderStore>().SetCamera(mainCam.GetComponent<PlayerFollow>());
                 } else {
-                    GameObject itemController = GameObject.FindGameObjectWithTag("ItemPlacementController");
-                    itemController.GetComponent<ItemPlacementController>().SetTarget(transform);
-                    itemLoader.GetComponent<ItemLoader>().SetCamera(mainCam.GetComponent<PlayerFollow>());
+                    myRoom = PlayerPrefs.GetString("currentRoomID") == PlayerPrefs.GetString("myRoomID");
+                    if (myRoom) {
+                        GameObject itemController = GameObject.FindGameObjectWithTag("ItemPlacementController");
+                        itemController.GetComponent<ItemPlacementController>().SetTarget(transform);
+                        itemLoader.GetComponent<ItemLoader>().SetCamera(mainCam.GetComponent<PlayerFollow>());
+                        GameObject.FindGameObjectWithTag("CharacterChange").GetComponent<CharacterChange>().SetTargetCharacter(this);
+                    }
                 }
             }
         }
@@ -234,23 +235,16 @@ namespace Spaces {
                 inRoomState = -1;
             } else if (other.gameObject.name == "store") {
                 itemLoader.GetComponent<ItemLoaderStore>().ActivateStore(true);
+            } else if (other.gameObject.name == "Wardrobe" && myRoom) {
+                itemLoader.GetComponent<ItemLoader>().ToggleWardrobe(true);
             }
-            // if (inRoomState == -1) {
-            //     if (other.gameObject.name == "Road") {
-            //         mainCam.GetComponent<PlayerFollow>().ChangeCameraViewpoint(true);
-            //         inRoomState = 1;
-            //     }
-            // } else if (inRoomState == 0) {
-            //     if (other.gameObject.name == "Road") {
-            //         mainCam.GetComponent<PlayerFollow>().ChangeCameraViewpoint(true);
-            //         inRoomState = 1;
-            //     }
-            // } else {
-            //     if (other.gameObject.name == "door") {
-            //         mainCam.GetComponent<PlayerFollow>().ChangeCameraViewpoint(false);
-            //         inRoomState = 0;
-            //     }
-            // }
+        }
+
+
+        public void ChangeSkin(Material newMat) {
+            transform.GetChild(0).GetComponent<SkinnedMeshRenderer>().material = newMat;
+            itemLoader.GetComponent<ItemLoader>().ToggleCharacterChange();
+            PV.RPC("RPC_SkinChange", RpcTarget.AllBuffered, newMat.name, PV.ViewID);
         }
 
         private void OnTriggerExit(Collider other) {
@@ -259,6 +253,8 @@ namespace Spaces {
             }
             if (other.gameObject.name == "store") {
                 itemLoader.GetComponent<ItemLoaderStore>().ActivateStore(false);
+            } else if (other.gameObject.name == "Wardrobe" && myRoom) {
+                itemLoader.GetComponent<ItemLoader>().ToggleWardrobe(false);
             }
         }
 
@@ -271,7 +267,6 @@ namespace Spaces {
         void RPC_ChangeCharacterName(string name, int pvID) {
             // 0 = private; 1 = public
             inPublicRoom = PlayerPrefs.GetInt("isInPublicWorld");
-            Debug.Log("in public room: s" + inPublicRoom);
             GameObject nameCanvas;
             if (inPublicRoom == 0) {
                 nameCanvas = PhotonView.Find(pvID).transform.GetChild(3).gameObject;
@@ -296,6 +291,12 @@ namespace Spaces {
             }
             TMPro.TextMeshProUGUI chatCanvas = PhotonView.Find(pvID).transform.GetChild(4).GetChild(1).GetChild(0).GetComponent<TMPro.TextMeshProUGUI>();
             chatCanvas.text = message;
+        }
+
+        [PunRPC]
+        void RPC_SkinChange(string skinName, int pvID) {
+            Material material = Resources.Load<Material>("Characters/Materials/" + skinName) as Material;
+            PhotonView.Find(pvID).transform.GetChild(0).GetComponent<SkinnedMeshRenderer>().material = material;
         }
     }
 }

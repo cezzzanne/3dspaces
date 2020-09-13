@@ -33,10 +33,15 @@ namespace Spaces {
         private int purchasedItemsIndex = 0;
 
         private GameObject currentItem;
-    
+
+        public GameObject CharacterChange;
+
+        private CharacterChange CharacterChangeScript;
+
         void Start() {
             ObjectHolder = transform.GetChild(0);
             uiManagerScript = uiManager.GetComponent<UIManagerScript>();
+            CharacterChangeScript = CharacterChange.GetComponent<CharacterChange>();
             string roomID = PlayerPrefs.GetString("myRoomID");
             if (PlayerPrefs.GetString("currentRoomID") == roomID) {
                 StartCoroutine(LoadPurchasedItems(roomID));
@@ -82,7 +87,7 @@ namespace Spaces {
                     StoreResponse fullData = JsonUtility.FromJson<StoreResponse>(response);
                     foreach(StoreItem item in fullData.data) {
                         if (item.type == "skin") {
-                            storeDataSkins.Add(item);
+                            CharacterChangeScript.AddToAvailableSkins(item);
                         } else {
                             Debug.Log("7878: adding object : " +  item);
                             storeDataObjects.Add(item);
@@ -130,6 +135,19 @@ namespace Spaces {
 
         public void SetCamera(PlayerFollow cam) {
             mainCam = cam;
+        }
+
+        public void ToggleWardrobe(bool open) {
+            uiManagerScript.ToggleWardrobe(open);
+        }
+
+        public void ToggleCharacterChange() {
+            if (mainCam == null) {
+                return;
+            }
+            mainCam.ToggleCharacterChange();
+            inEditing = !inEditing;
+            uiManagerScript.ToggleCharacterChange();
         }
 
 
@@ -232,7 +250,9 @@ namespace Spaces {
         public void ConfirmItem() {
             inEditing = false;
             mainCam.ToggleItemLoader();
-            itemController.GetComponent<ItemPlacementController>().HandleNewObj(itemNames[currIndex]);
+            uiManagerScript.IsPlacingItem();
+            string itemLoc = (!browsingPurchased) ? "TownPrefabs/" + itemNames[currIndex] : "StoreItems/" + storeDataObjects[purchasedItemsIndex].location;
+            itemController.GetComponent<ItemPlacementController>().HandleNewObj(itemLoc);
         }
 
         public void CancelEditing() {

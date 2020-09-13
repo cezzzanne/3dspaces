@@ -28,6 +28,12 @@ public class UIManagerScript : MonoBehaviour {
 
     public GameObject PurchasedItemsB, RegularItemsB;
 
+    private bool browsingPurchased = false;
+
+    public GameObject NextSkinB, PreviousSkinB, CancelSkinB, ConfirmSkinB, WardrobeB;
+
+    private bool changingCharacter = false;
+
     void Start() {
         inMyRoom = PlayerPrefs.GetString("currentRoomID") == PlayerPrefs.GetString("myRoomID");
         SetInitialState();
@@ -43,7 +49,6 @@ public class UIManagerScript : MonoBehaviour {
         OpenTabsToggle.SetActive(true);
         EditOrGoHomePanel.SetActive(false);
         if (inMyRoom) {
-            // editWorld.SetActive(true);
             goBackHome.SetActive(false);
         } else {
             editWorld.SetActive(false);
@@ -79,7 +84,7 @@ public class UIManagerScript : MonoBehaviour {
     public void GoHomeCallback() {
         inMyRoom = true;
         SetInitialState();
-
+        editWorld.SetActive(true);
     }
 
     public void SpreadTabs() {
@@ -96,9 +101,10 @@ public class UIManagerScript : MonoBehaviour {
         }
     }
 
-    public void ToggleBrowsing(bool browsingPurchased) {
-        PurchasedItemsB.SetActive(browsingPurchased);
-        RegularItemsB.SetActive(!browsingPurchased);
+    public void ToggleBrowsing(bool isbrowsingPurchased) {
+        PurchasedItemsB.SetActive(isbrowsingPurchased);
+        RegularItemsB.SetActive(!isbrowsingPurchased);
+        browsingPurchased = isbrowsingPurchased;
     }
 
     public void ToggleEditing() {
@@ -120,8 +126,7 @@ public class UIManagerScript : MonoBehaviour {
             confirmItemB.SetActive(true);
             nextItemB.SetActive(true);
             prevItemB.SetActive(true);
-            RegularItemsB.SetActive(true);
-            PurchasedItemsB.SetActive(false);
+            ToggleBrowsing(browsingPurchased);
             quitSelectorB.SetActive(true);
             joystick.SetActive(false);
         }
@@ -138,6 +143,8 @@ public class UIManagerScript : MonoBehaviour {
         nextItemB.SetActive(false);
         prevItemB.SetActive(false);
         quitSelectorB.SetActive(false);
+        PurchasedItemsB.SetActive(false);
+        RegularItemsB.SetActive(false);
     }
 
     public void PlacedItem() {
@@ -149,6 +156,27 @@ public class UIManagerScript : MonoBehaviour {
 
     public void FinishedEditing() {
         //
+    }
+
+    public void ToggleWardrobe(bool open) {
+        WardrobeB.SetActive(open);
+    }
+
+    public void ToggleCharacterChange() {
+        joystick.SetActive(changingCharacter);
+        OpenTabsToggle.SetActive(changingCharacter);
+        WardrobeB.SetActive(changingCharacter);
+        if (tabsSpread && !changingCharacter) {
+                SpreadTabs();
+        }
+        ConfirmSkinB.SetActive(!changingCharacter);
+        CancelSkinB.SetActive(!changingCharacter);
+        PreviousSkinB.SetActive(!changingCharacter);
+        NextSkinB.SetActive(!changingCharacter);
+        if (changingCharacter) {
+            SetInitialState();
+        }
+        changingCharacter = !changingCharacter;
     }
 
 }
