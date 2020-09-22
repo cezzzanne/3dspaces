@@ -5,6 +5,10 @@ using Photon.Pun;
 using UnityEngine.SceneManagement;
 using Photon.Voice.PUN;
 using Photon.Voice.Unity;
+using System;
+using Firebase;
+using Firebase.Unity.Editor;
+using Firebase.Database;
 
 namespace Spaces {
     public class GameManagerPublic : MonoBehaviourPunCallbacks {
@@ -36,6 +40,10 @@ namespace Spaces {
         private bool initialConnection = true;
         private bool reconnect = false;
 
+        private string myUsername;
+
+        // FirebaseFirestore db;
+
 
         void Awake() {
             if (PlayerPrefs.GetInt("isInPublicWorld") == 0) {
@@ -43,10 +51,18 @@ namespace Spaces {
             }
         }
 
-        void OnApplicationFocus(bool focus) {
+       void OnApplicationFocus(bool focus) {
             if (focus && !initialConnection) {
                 StartCoroutine(CheckIfDisconnected());
+                LogToFirebase(1);
             }
+            if (!focus && !initialConnection) {
+                LogToFirebase(0);
+            }
+        }
+
+        void OnApplicationQuit() {
+            LogToFirebase(-1);        
         }
 
         IEnumerator CheckIfDisconnected() {
@@ -63,6 +79,8 @@ namespace Spaces {
 
         void Start() {
             LoadingScreen.SetActive(true);
+            // db = FirebaseFirestore.DefaultInstance;
+            myUsername = PlayerPrefs.GetString("username");
             string currentSkin = PlayerPrefs.GetString("CurrentSkin");
             GameObject playerPrefab = Resources.Load<GameObject>("Characters/" + currentSkin);
             Debug.Log("current skin: " + currentSkin);
@@ -145,6 +163,17 @@ namespace Spaces {
             //     manager.ChangeID();
             // }
             PhotonNetwork.DestroyPlayerObjects(otherPlayer);   
+        }
+
+        public void LogToFirebase(int state) {
+            // -1 is left; 0 is sleeping; 1 is active
+            string lastSeen = (state == 1) ? "1" : ((state == 0) ? "0" : DateTime.Now.ToString());
+            Dictionary<string, object> location = new Dictionary<string, object>
+            {
+                    { "LastSeen", lastSeen},
+            };
+            DatabaseReference reference = FirebaseDatabase.DefaultInstance.RootReference;
+            reference.Child("users").Child(myUsername).UpdateChildrenAsync(location);
         }
 
     }

@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Networking;
 using System;
+using Firebase.Database;
 
 namespace Spaces {
 
@@ -61,6 +62,11 @@ namespace Spaces {
         public GameObject coins;
         public GameObject LoadingPurchase;
 
+        string roomID;
+
+        string username;
+
+        int coinsValue = -1;
         
         void Start() {
             ObjectHolder = transform.GetChild(0);
@@ -71,7 +77,8 @@ namespace Spaces {
         IEnumerator GetItems() {
             WWWForm form = new WWWForm();
             Debug.Log("GOING INTO REQUEST");
-            form.AddField("userID", PlayerPrefs.GetString("myRoomID"));
+            roomID = PlayerPrefs.GetString("myRoomID");
+            form.AddField("userID", roomID);
             form.AddField("storeType", 0);
             UnityWebRequest www = UnityWebRequest.Post("https://circles-parellano.herokuapp.com/api/get-store", form);
             yield return www.SendWebRequest();
@@ -83,9 +90,31 @@ namespace Spaces {
                 yield return response;
                 Debug.Log("Form upload complete! Text: " + response);
                 storeData = JsonUtility.FromJson<StoreResponse>(response);
-                coins.transform.GetChild(0).GetComponent<TMPro.TextMeshProUGUI>().text = "$" + storeData.coins;
-                coins.SetActive(true);
+                GetCoins();
+
             }
+        }
+
+        void GetCoins() {
+            StartCoroutine(UpdateCoinsUI());
+            username = PlayerPrefs.GetString("username");
+            DatabaseReference reference = FirebaseDatabase.DefaultInstance.RootReference;
+            reference.Child("users").Child(username).Child("coins").GetValueAsync().ContinueWith(task => {
+                DataSnapshot snapshot = task.Result;
+                if (!snapshot.Exists) {
+                    Debug.Log("error no coins");
+                    return;
+                }
+                coinsValue = int.Parse(snapshot.Value as string);
+            });
+        }
+    // have to do it in coroutine because you cannot do it async in callback from firebase
+        IEnumerator UpdateCoinsUI() {
+            while(coinsValue == -1) {
+                yield return null;
+            }
+            coins.transform.GetChild(0).GetComponent<TMPro.TextMeshProUGUI>().text = "$" + coinsValue;
+            coins.SetActive(true);
         }
 
 
@@ -107,7 +136,7 @@ namespace Spaces {
         }
 
         void ToggleUI() {
-            if (inEditing && (int.Parse(storeData.data[currIndex].price) > 400)) {
+            if (inEditing && (int.Parse(storeData.data[currIndex].price) > coinsValue)) {
                 BuyItemB.SetActive(false);
             } else {
                 BuyItemB.SetActive(inEditing);
@@ -168,7 +197,7 @@ namespace Spaces {
 
         public void LoadItem() {
             StoreItem item = storeData.data[currIndex];
-            if (int.Parse(item.price) > 400) {
+            if (int.Parse(item.price) > coinsValue) {
                 BuyItemB.SetActive(false);
             } else {
                 BuyItemB.SetActive(true);
@@ -218,7 +247,7 @@ namespace Spaces {
 
         public IEnumerator PurchaseItem(StoreItem currentItem) {
             WWWForm form = new WWWForm();
-            form.AddField("userID", PlayerPrefs.GetString("myRoomID"));
+            form.AddField("userID", roomID);
             form.AddField("name", currentItem.name);
             form.AddField("location", currentItem.location);
             form.AddField("price", currentItem.price.ToString());
@@ -231,13 +260,13 @@ namespace Spaces {
             else {
                 string response = www.downloadHandler.text;
                 yield return response;
-                Debug.Log("purchased item " + response);
                 PurchaseResponse resp = JsonUtility.FromJson<PurchaseResponse>(response);
                 if (resp.success == "true") {
                     LoadingPurchase.transform.GetChild(0).GetComponent<TMPro.TextMeshProUGUI>().text = "congratulations! purchase completed!";
                     yield return new WaitForSeconds(4);
-                    storeData.coins = storeData.coins - int.Parse(currentItem.price);
-                    coins.transform.GetChild(0).GetComponent<TMPro.TextMeshProUGUI>().text = "$" + storeData.coins;
+                    coinsValue -= int.Parse(currentItem.price);
+                    coins.transform.GetChild(0).GetComponent<TMPro.TextMeshProUGUI>().text = "$" + coinsValue.ToString();
+                    DeductFirebaseCoins(coinsValue);
                     storeData.data.RemoveAt(currIndex);
                     NextItem();
                     LoadingPurchase.SetActive(false);
@@ -249,6 +278,15 @@ namespace Spaces {
                     
                 }
             }
+        }
+
+        void DeductFirebaseCoins(int coinsValue) {
+            DatabaseReference reference = FirebaseDatabase.DefaultInstance.RootReference;
+            Dictionary<string, object> user = new Dictionary<string, object>
+            {
+                    { "coins", coinsValue.ToString() },
+            };
+            reference.Child("users").Child(username).UpdateChildrenAsync(user);
         }
 
         public void CancelEditing() {

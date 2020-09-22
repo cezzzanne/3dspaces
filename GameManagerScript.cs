@@ -6,6 +6,10 @@ using UnityEngine.SceneManagement;
 using Photon.Voice.PUN;
 using Photon.Voice.Unity;
 using System;
+using OneSignalPush.MiniJSON;
+using Firebase;
+using Firebase.Unity.Editor;
+using Firebase.Database;
 
 namespace Spaces {
     public class GameManagerScript : MonoBehaviourPunCallbacks {
@@ -42,6 +46,10 @@ namespace Spaces {
         private string currentWorldType;
         private string previousWorldType;
         public GameObject ItemController;
+
+        private string myUsername = null;
+
+        private string myRoomID;
         // world type is based on the type of world the user posseses (3 kinds) // roomID is to join the same photon room based on player id
 
 
@@ -54,19 +62,51 @@ namespace Spaces {
             if (inPublic == 1) {
                 PlayerPrefs.SetInt("isInPublicWorld", 0);
             }
+            OneSignal.StartInit("73edd87b-7555-4075-b728-5a27c4fb1a9f")
+                .HandleNotificationOpened(HandleNotificationOpened)
+                .Settings(new Dictionary<string, bool>() {
+                { OneSignal.kOSSettingsAutoPrompt, false },
+                { OneSignal.kOSSettingsInAppLaunchURL, false } })
+                .EndInit();
+            OneSignal.inFocusDisplayType = OneSignal.OSInFocusDisplayOption.Notification;
+            OneSignal.SetLogLevel(OneSignal.LOG_LEVEL.INFO, OneSignal.LOG_LEVEL.INFO);
+        }
+
+        // testing function for previous error / perhaps get the FriendManager and on notification of accept request get id and name and add button to friend panel
+        private static void HandleNotificationOpened(OSNotificationOpenedResult result) {
         }
 
         void OnApplicationFocus(bool focus) {
             if (focus && !initialConnection) {
                 StartCoroutine(CheckIfDisconnected());
+                if (roomIDToJoin == myRoomID) {
+                    LogToFirebase(myUsername.ToLower() + "'s World", 1);
+                } else {
+                    LogToFirebase(currentUsername.ToLower() + "'s World", 1);
+                }
             }
+            if (!focus && !initialConnection) {
+                if (roomIDToJoin == myRoomID) {
+                    LogToFirebase(myUsername.ToLower() + "'s World", 0);
+                } else {
+                    LogToFirebase(currentUsername.ToLower() + "'s World", 0);
+                }
+            }
+        }
+
+        void OnApplicationQuit() {
+            if (myUsername == null) {
+                return;
+            }
+            if (roomIDToJoin == myRoomID) {
+                LogToFirebase(myUsername.ToLower() + "'s World", -1);
+            } else {
+                LogToFirebase(currentUsername.ToLower() + "'s World", -1);
+            }        
         }
 
         IEnumerator CheckIfDisconnected() {
             yield return new WaitForSeconds(1);
-            Debug.Log("111: application is focused now");
-            Debug.Log("111 is connected and ready: " + PhotonNetwork.IsConnectedAndReady);
-            Debug.Log("111: network state: " + PhotonNetwork.NetworkClientState);
             if (!PhotonNetwork.IsConnectedAndReady) {
                 LoadingScreen.SetActive(true);
                 PhotonNetwork.ConnectUsingSettings();
@@ -78,10 +118,9 @@ namespace Spaces {
             LoadingScreen.SetActive(true);
             currentWorldType =  PlayerPrefs.GetString("currentWorldType");
             roomIDToJoin = PlayerPrefs.GetString("currentRoomID");
+            myUsername = PlayerPrefs.GetString("username");
             string currentSkin = PlayerPrefs.GetString("CurrentSkin");
             GameObject playerPrefab = Resources.Load<GameObject>("Characters/" + currentSkin);
-            Debug.Log("current skin: " + currentSkin);
-            Debug.Log("current prefab: " + playerPrefab);
             PlayerPrefab = playerPrefab.GetComponent<CharacterScript>();;
             PhotonNetwork.OfflineMode = false;
             PhotonNetwork.NickName = "Pablo";
@@ -98,6 +137,7 @@ namespace Spaces {
             Debug.Log("connected to master");
             OnClickConnectRoom();
         }
+
        public void OnClickConnectRoom() {
             Debug.Log("IN JOIN ROOM NAME : " + roomIDToJoin);
             PhotonNetwork.JoinRoom(roomIDToJoin);
@@ -110,8 +150,8 @@ namespace Spaces {
             initialConnection = false;
             if (reconnect) {
                 Debug.Log("111: reconnecting active");
-                reconnect = false;
                 LoadingScreen.SetActive(false);
+                reconnect = false;
                 return;
             }
             SetUpNewTerrain();
@@ -147,6 +187,7 @@ namespace Spaces {
         }
 
         public void GoToPublicWorld(string worldName) {
+            LogToFirebase(worldName, 1);
             StartCoroutine(DisconnectToPublicWorld(worldName));
         }
 
@@ -189,7 +230,7 @@ namespace Spaces {
         }
 
         public void SetUpNewTerrain() {
-            string myRoom = PlayerPrefs.GetString("myRoomID");
+            myRoomID = PlayerPrefs.GetString("myRoomID");
             // check if same terrain type as previous (first check its not null // actually maybe itll just default to false if null)
             if (currentWorldType != previousWorldType) {
                 if (currentTerrain != null && currentPrebuiltTerrain != null) {
@@ -202,18 +243,22 @@ namespace Spaces {
                 ItemController.GetComponent<ItemPlacementController>().SetTerrain(currentTerrain);
                 currentPrebuiltTerrain = Instantiate(prebuiltTerrain);
             }
-            if (myRoom == roomIDToJoin) {
+            if (myRoomID == roomIDToJoin) {
                 CurrentRoomUsername.SetActive(false);
+                LogToFirebase(myUsername.ToLower() + "'s World", 1);
             } else {
                 CurrentRoomUsername.SetActive(true);
                 if (currentUsername == null) {
                     currentUsername = PlayerPrefs.GetString("currentRoomUsername");
                 }
                 CurrentRoomUsername.transform.GetChild(0).GetComponent<TMPro.TextMeshProUGUI>().text = "@" + currentUsername.ToLower();
+                LogToFirebase(currentUsername.ToLower() + "'s World", 1);
+                SendNotification(roomIDToJoin);
             }
             GameObject oldTerrain = GameObject.FindGameObjectWithTag("ModifiedTerrain");
             Destroy(oldTerrain);
             GameObject newTerrain = Instantiate(ModTerrainPrefab) as GameObject;
+            // todo : this is wrong; I should be checking the transform of something else but definetly no this transform
             if (!(transform.childCount > 0)) {
                 SaveSystem.LoadSpace(roomIDToJoin, newTerrain, null);
             }
@@ -224,13 +269,28 @@ namespace Spaces {
             Debug.Log("player leaving");
             base.OnPlayerLeftRoom(otherPlayer);
             CharacterScript otherScript = (otherPlayer.TagObject as GameObject).GetComponent<CharacterScript>();
-            // otherScript.DestroyCamera();
-            // ChatManager manager = ChatManager.GetComponent<ChatManager>();
-            // if (manager.id > otherScript.id) {
-            //     manager.ChangeID();
-            // }
             PhotonNetwork.DestroyPlayerObjects(otherPlayer);   
         }
 
+        public void SendNotification(string externalPlayerID) {
+            Dictionary<string, object> notification = new Dictionary<string, object>();
+            notification["headings"] = new Dictionary<string, string>() { {"en", "Someone is in your world 🌎" } };
+            notification["contents"] = new Dictionary<string, string>() { {"en", "@" + myUsername.ToLower() + " is visiting you! Come say hi 👋" } };
+            notification["include_player_ids"] = new List<string>() { externalPlayerID };
+            OneSignal.PostNotification(notification);
+        }
+
+
+        public void LogToFirebase(string seenAt, int state) {
+            // -1 is left; 0 is sleeping; 1 is active
+            string lastSeen = (state == 1) ? "1" : ((state == 0) ? "0" : DateTime.Now.ToString());
+            Dictionary<string, object> location = new Dictionary<string, object>
+            {
+                    { "LastSeen", lastSeen},
+                    { "Place", seenAt}
+            };
+            DatabaseReference reference = FirebaseDatabase.DefaultInstance.RootReference;
+          reference.Child("users").Child(myUsername).UpdateChildrenAsync(location);
+        } 
     }
 }

@@ -55,6 +55,8 @@ namespace Spaces {
         private bool myRoom;
         private bool wardrobeOpen = false;
         MapPlayerScript mapPlayerScript;
+
+        private string username, roomID, myRoomID;
         public Quaternion TargetRotation() {
             return transform.rotation;
         }
@@ -69,18 +71,23 @@ namespace Spaces {
                 cameraScript.SetCameraTarget(transform);
                 GameObject itemControllerObject = GameObject.FindGameObjectWithTag("ItemPlacementController") as GameObject;
                 PV = transform.GetComponent<PhotonView>();
-                PV.RPC("RPC_ChangeCharacterName", RpcTarget.AllBuffered, PlayerPrefs.GetString("username"), PV.ViewID);
+                username = PlayerPrefs.GetString("username");
+                PV.RPC("RPC_ChangeCharacterName", RpcTarget.AllBuffered, username, PV.ViewID);
                 itemLoader = GameObject.FindGameObjectWithTag("ItemLoader");
                 if (inPublicRoom == 1) {
                     GameObject.FindGameObjectWithTag("Canvas").GetComponent<InputHandler>().SetTarget(this);
                     itemLoader.GetComponent<ItemLoaderStore>().SetCamera(mainCam.GetComponent<PlayerFollow>());
                 } else {
-                    myRoom = PlayerPrefs.GetString("currentRoomID") == PlayerPrefs.GetString("myRoomID");
+                    roomID = PlayerPrefs.GetString("currentRoomID");
+                    myRoomID = PlayerPrefs.GetString("myRoomID");
+                    myRoom = roomID == myRoomID;
                     if (myRoom) {
                         GameObject itemController = GameObject.FindGameObjectWithTag("ItemPlacementController");
                         itemController.GetComponent<ItemPlacementController>().SetTarget(transform);
                         itemLoader.GetComponent<ItemLoader>().SetCamera(mainCam.GetComponent<PlayerFollow>());
                         GameObject.FindGameObjectWithTag("CharacterChange").GetComponent<CharacterChange>().SetTargetCharacter(this);
+                        GameObject notificationManager = GameObject.FindGameObjectWithTag("NotificationManager");
+                        notificationManager.GetComponent<InnerNotifManagerScript>().SetCharacterTarget(transform, username, myRoomID);
                     }
                 }
             }

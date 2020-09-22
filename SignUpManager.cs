@@ -5,6 +5,10 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.Networking;
+using Firebase;
+using Firebase.Unity.Editor;
+using Firebase.Database;
+
 public class SignUpManager : MonoBehaviour {
     public GameObject mainCamera;
     public GameObject usernameField;
@@ -37,6 +41,7 @@ public class SignUpManager : MonoBehaviour {
     // camera avatar creation = xpos - 368.21; y- 4.2; z - 434.57; xrot - 15; yrot - 0.366
 
     void Awake() {
+        FirebaseApp.DefaultInstance.SetEditorDatabaseUrl("https://spaces-d9a3c.firebaseio.com/");
         string currentCharacter = PlayerPrefs.GetString("CurrentSkin");
         if (currentCharacter != "") {
             SceneManager.LoadScene("MainGame");
@@ -183,6 +188,26 @@ public class SignUpManager : MonoBehaviour {
         prevAvatarButton.SetActive(true);
         nextAvatarButton.SetActive(true);
         inCharacterSelectionScene = true;
+        SetFirebaseProfile();
+    }
+
+
+    public void SetFirebaseProfile() {
+        Dictionary<string, object> requests = new Dictionary<string, object>(){};
+        Dictionary<string, object> coinsInfo = new Dictionary<string, object>(){
+            {"LastRequest", "none"},
+            {"ConsecutiveDays", "0"}
+        };
+
+        Dictionary<string, object> user = new Dictionary<string, object>
+        {
+                { "id", PlayerPrefs.GetString("myRoomID") },
+                { "requests", requests},
+                {"coins",  "0"},
+                {"coinsInfo", coinsInfo}
+        };
+        DatabaseReference reference = FirebaseDatabase.DefaultInstance.RootReference;
+        reference.Child("users").Child(username).SetValueAsync(user);
     }
 
     public delegate void GoToNextScene();
@@ -205,14 +230,13 @@ public class SignUpManager : MonoBehaviour {
                 Debug.Log(data.message);
                 errorButton.SetActive(true);
             } else {
-                Debug.Log(response);
                 loadingIndicator.GetComponent<Slider>().value = 1;
+                OneSignal.SetExternalUserId(data.userID);
                 PlayerPrefs.SetString("myRoomID", data.userID);
                 PlayerPrefs.SetString("currentWorldType", "MainGame");
                 PlayerPrefs.SetString("currentRoomID", data.userID);
                 PlayerPrefs.SetString("username", username);
                 callback();
-
             }
         
         }

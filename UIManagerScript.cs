@@ -34,6 +34,13 @@ public class UIManagerScript : MonoBehaviour {
 
     private bool changingCharacter = false;
 
+    public GameObject TopPanel, FriendsPanel, RequestsPanel; 
+
+    private bool friendsPanelOpen = true;
+
+    public GameObject AddFriendB, AddFriendForm, LoadingFriendReqB, SuccessFriendReqB, ErrorFriendReqB;
+
+
     void Start() {
         inMyRoom = PlayerPrefs.GetString("currentRoomID") == PlayerPrefs.GetString("myRoomID");
         SetInitialState();
@@ -41,6 +48,9 @@ public class UIManagerScript : MonoBehaviour {
 
     public void SetInitialState() {
         panel.SetActive(false);
+        TopPanel.SetActive(false);
+        FriendsPanel.SetActive(true);
+        RequestsPanel.SetActive(false);
         tabsSpread = false;
         mapIsToggled = false;
         openPanelButton.SetActive(false);
@@ -63,6 +73,7 @@ public class UIManagerScript : MonoBehaviour {
     public void TogglePanel(bool open) {
         if (open) {
             panel.SetActive(true);
+            TopPanel.SetActive(true);
             closePanelButton.SetActive(true);
             SpeakingPanel.SetActive(false);
             OpenTabsToggle.SetActive(false);
@@ -71,6 +82,7 @@ public class UIManagerScript : MonoBehaviour {
             openPanelButton.SetActive(false);
         } else {
             panel.SetActive(false);
+            TopPanel.SetActive(false);
             closePanelButton.SetActive(false);
             OpenTabsToggle.SetActive(true);
         }
@@ -177,6 +189,39 @@ public class UIManagerScript : MonoBehaviour {
             SetInitialState();
         }
         changingCharacter = !changingCharacter;
+    }
+
+    public void ToggleRequestAndFriendsPanel() {
+        RequestsPanel.SetActive(friendsPanelOpen);
+        FriendsPanel.SetActive(!friendsPanelOpen);
+        friendsPanelOpen = !friendsPanelOpen;
+    }
+
+    public void AddFriendUsername() {
+        AddFriendB.SetActive(false);
+        AddFriendForm.SetActive(true);
+    }
+
+    public void LoadingFriendRequest() {
+        AddFriendForm.SetActive(false);
+        LoadingFriendReqB.SetActive(true);
+    }
+
+    public void ResultFriendRequest(bool success) {
+        LoadingFriendReqB.SetActive(false);
+        if (success) {
+            SuccessFriendReqB.SetActive(true);
+        } else {
+            ErrorFriendReqB.SetActive(true);
+        }
+        StartCoroutine(RevertFriendRequestResult());
+    }
+
+    IEnumerator RevertFriendRequestResult() {
+        yield return new WaitForSeconds(3);
+        SuccessFriendReqB.SetActive(false);
+        ErrorFriendReqB.SetActive(false);
+        AddFriendB.SetActive(true);
     }
 
 }

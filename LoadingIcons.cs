@@ -10,6 +10,6 @@ public class LoadingIcons : MonoBehaviour {
 
     // Update is called once per frame
     void Update() {
-        transform.RotateAround(transform.position, new Vector3(0 , 0, 1), 0.3f);
+        transform.RotateAround(transform.position, new Vector3(0 , 0, 1), 0.9f);
     }
 }
