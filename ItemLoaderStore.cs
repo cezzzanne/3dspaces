@@ -4,6 +4,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Networking;
 using System;
+using Firebase;
+using Firebase.Unity.Editor;
 using Firebase.Database;
 
 namespace Spaces {
@@ -71,6 +73,7 @@ namespace Spaces {
         void Start() {
             ObjectHolder = transform.GetChild(0);
             StartCoroutine(GetItems());
+            FirebaseApp.DefaultInstance.SetEditorDatabaseUrl("https://spaces-d9a3c.firebaseio.com/");
         }
 
 
@@ -102,10 +105,10 @@ namespace Spaces {
             reference.Child("users").Child(username).Child("coins").GetValueAsync().ContinueWith(task => {
                 DataSnapshot snapshot = task.Result;
                 if (!snapshot.Exists) {
-                    Debug.Log("error no coins");
+                    Debug.Log("zz error no coins");
                     return;
                 }
-                coinsValue = int.Parse(snapshot.Value as string);
+                coinsValue = Convert.ToInt32(snapshot.Value);
             });
         }
     // have to do it in coroutine because you cannot do it async in callback from firebase

@@ -9,13 +9,15 @@ using Firebase.Database;
 
 namespace Spaces {
 
-    [System.Serializable]
-    public  struct AddFriendResponseData {
-        public string success, friendID, world_type;
 
-        
+    // CREATE GROUP RESPONSE
+    [System.Serializable]
+    public  struct CreateGroupResponse {
+        public string success, code;
     }
 
+
+    // FRIENDS JSON
      [System.Serializable]
     public  struct FriendsData {
         public FriendJson[] friends;
@@ -31,16 +33,32 @@ namespace Spaces {
         public string id;
         public string world_type;
         public FriendJsonUsername user;
-
-
-        
     }
      [System.Serializable]
     public  struct FriendJsonUsername {
         public string username;
-
         
     }
+
+    /// GROUPS JSON
+     [System.Serializable]
+    public  struct GroupsData {
+        public GroupData[] data;
+    }
+
+    [System.Serializable]
+    public  struct GroupData {
+        public string code, name;
+        public GroupMember[] members;
+    }
+
+
+    [System.Serializable]
+    public  struct GroupMember {
+        public FriendJson world_user;
+    }
+
+
     public class FriendManagerScript : MonoBehaviour {
         // Start is called before the first frame update
 
@@ -50,7 +68,7 @@ namespace Spaces {
         public GameObject AddFriendButton;
         public GameObject CancelFormButton;
         public GameObject HomeButton;
-        public GameObject PrefabFriendButton;
+        public GameObject GroupFriendButton;
 
         public GameObject ContactListButton;
         public GameObject SpeakerButton;
@@ -85,25 +103,29 @@ namespace Spaces {
         private string roomID;
 
         private string sendRequestExtID = "null";
+        public GameObject JoingGroupInputField;
 
+        public GameObject GroupButtonPrefab;
+
+        public GameObject OpenGroupPanel;
+
+        public GameObject InviteFriendInputField;
+
+        private string currentGroupCode = "";
 
         void Start() {
             username = PlayerPrefs.GetString("username");
             Debug.Log("USSERNAME : " + username);
             roomID = PlayerPrefs.GetString("myRoomID");
             managerScript = GameManager.GetComponent<GameManagerScript>();
-            StartCoroutine(GetFriends("https://circles-parellano.herokuapp.com/api/get-world-friends", PrefabFriendButton, FriendCallback, FriendListContent));
+            // need to get groups here
+            StartCoroutine(GetGroups("https://circles-parellano.herokuapp.com/api/get-world-groups", GroupButtonPrefab, GroupCallback, FriendListContent));
             uiManagerScript = UIManager.GetComponent<UIManagerScript>();
             itemLoader = itemLoaderGO.GetComponent<ItemLoader>();
-            SetUpRequests();
+            // SetUpRequests();
         }
 
-        void OnApplicationQuit() {
-            DatabaseReference reference = FirebaseDatabase.DefaultInstance.RootReference;
-            reference.Child("users").Child(username).Child("requests").ValueChanged -= HandleRequestsUpdate;
-        }
-
-        IEnumerator GetFriends(string url, GameObject buttonPrefab, FriendButtonClickCallback friendFunc, GameObject panel) {
+        IEnumerator GetGroups(string url, GameObject buttonPrefab, GroupButtonCallback callback, GameObject panel) {
             WWWForm form = new WWWForm();
             form.AddField("userID", roomID);
             UnityWebRequest www = UnityWebRequest.Post(url, form);
@@ -112,16 +134,35 @@ namespace Spaces {
                 Debug.Log(www.error);
             } else {
                 string response = www.downloadHandler.text;
-                Debug.Log("success");
-                GetFriendsResponseData friendData = JsonUtility.FromJson<GetFriendsResponseData>(response);
-                foreach (FriendJson friend in friendData.data.friends) {
+                Debug.Log("zz data : " + response);
+                GroupsData groupsData = JsonUtility.FromJson<GroupsData>(response);
+                foreach (GroupData group in groupsData.data) {
                     GameObject newButton = Instantiate(buttonPrefab) as GameObject;
-                    newButton.transform.GetChild(0).GetComponent<Text>().text = "@"+friend.user.username;
-                    newButton.GetComponent<Button>().onClick.AddListener(()=> {friendFunc(friend.id, friend.user.username, friend.world_type);});
-                    newButton.GetComponent<FriendTrackingScript>().TriggerStart(); // do this because once in parent it will not run
+                    newButton.transform.GetChild(1).GetChild(1).GetComponent<TMPro.TextMeshProUGUI>().text = group.name;
+                    newButton.GetComponent<Button>().onClick.AddListener(()=> {callback(group.name, group.code, group);});
+                    // add this trigger start to friend buttons though
+                    // newButton.GetComponent<FriendTrackingScript>().TriggerStart(); // do this because once in parent it will not run
                     newButton.transform.SetParent(panel.transform);     
                     newButton.transform.localScale = new Vector3(1, 1, 1);          
                 }
+                yield return response;
+            }
+        }
+
+        IEnumerator SendInvite(string number) {
+            WWWForm form = new WWWForm();
+            form.AddField("userID", roomID);
+            form.AddField("number", number);
+            form.AddField("code", currentGroupCode);
+            UnityWebRequest www = UnityWebRequest.Post("https://circles-parellano.herokuapp.com/api/invite-friend", form);
+            yield return www.SendWebRequest();
+            if(www.isNetworkError || www.isHttpError) {
+                Debug.Log(www.error);
+                uiManagerScript.ResultFriendInvite(false);
+            } else {
+                string response = www.downloadHandler.text;
+                Debug.Log("zz response : " + response);
+                uiManagerScript.ResultFriendInvite(true);
                 yield return response;
             }
         }
@@ -143,72 +184,79 @@ namespace Spaces {
             TogglePanel(false);
         }
 
-        public void AddFriendClick() {
-            uiManagerScript.AddFriendUsername();
+        public void CreateGroup() {
+            uiManagerScript.AddGroupUsername();
+        }
+
+        public void JoinGroupForm() {
+            uiManagerScript.JoinGroup();
         }
 
         public void SubmitForm() {
-            string text = AddFriendInputField.GetComponent<Text>().text.ToLower();
+            string text = AddFriendInputField.GetComponent<Text>().text;
             if (text.Trim() == "") {
                 AddFriendForm.SetActive(false);
                 AddFriendButton.SetActive(true);
                 return;
             }
-            SendFriendRequest(text);
+            StartCoroutine(SendGroupRequest(text, FriendListContent, GroupButtonPrefab, GroupCallback));
         }
-        public delegate void FriendButtonClickCallback(string friendID, string username, string worldType);
 
-        public void FriendCallback(string friendID, string username, string worldType) {
-            uiManagerScript.FriendCallback();
+        public void JoinGroup() {
+            string code = JoingGroupInputField.GetComponent<Text>().text;
+            if (code.Trim() == "") {
+                uiManagerScript.HideJoinGroupForm();
+                return;
+            }
+            uiManagerScript.LoadingJoin();
+            StartCoroutine(JoinGroupRequest(code, FriendListContent, GroupButtonPrefab, GroupCallback));
+        }
+
+        // refactor all this code
+        public void InviteFriend() {
+            string number = InviteFriendInputField.GetComponent<Text>().text;
+            if (number.Trim() == "") {
+                uiManagerScript.HideInviteFriendForm();
+                return;
+            }
+            uiManagerScript.LoadingInviteFriend();
+            StartCoroutine(SendInvite(number));
+        }
+
+        public delegate void GroupButtonCallback(string groupName, string code, GroupData members);
+        public delegate void FriendButtonClickCallback(string id, string username, string worldType);
+
+        public void GroupCallback(string groupName, string code, GroupData group) {
+            uiManagerScript.OpenGroup();
+            currentGroupCode = code;
+            foreach(GroupMember member in group.members) {
+                if (username != member.world_user.user.username) {
+                    GameObject newButton = Instantiate(GroupFriendButton) as GameObject;
+                    newButton.transform.GetChild(1).GetChild(1).GetComponent<TMPro.TextMeshProUGUI>().text = "@" + member.world_user.user.username; 
+                    newButton.GetComponent<Button>().onClick.AddListener(()=> {GoToFriendsRoom(member.world_user.id, member.world_user.user.username, member.world_user.world_type);});
+                    newButton.transform.SetParent(OpenGroupPanel.transform);     
+                    newButton.transform.localScale = new Vector3(1, 1, 1);
+                    newButton.SetActive(true);
+                }
+            }
+        }
+
+
+        public void GoToFriendsRoom(string friendID, string username, string worldType) {
+            GoBackToGroups();
+            uiManagerScript.GoToFriendsRoom();
             managerScript.GoToRoom(friendID, username, worldType); 
         }
 
         public void GoBackHome() {
+            GoBackToGroups();
             uiManagerScript.GoHomeCallback();
             StartCoroutine(itemLoader.LoadPurchasedItems(roomID));
             managerScript.GoToRoom(roomID, "", PlayerPrefs.GetString("myWorldType"));
         }
 
-        IEnumerator AddFriend(string friendUsername, string url, GameObject panel, GameObject buttonPrefab, FriendButtonClickCallback friendFunc) {
-            WWWForm form = new WWWForm();
-            form.AddField("userID", roomID);
-            form.AddField("username", friendUsername);
-            UnityWebRequest www = UnityWebRequest.Post(url, form);
-            yield return www.SendWebRequest();
-            if(www.isNetworkError || www.isHttpError) {
-                Debug.Log(www.error);
-            } else {
-                string response = www.downloadHandler.text;
-                AddFriendResponseData friendData = JsonUtility.FromJson<AddFriendResponseData>(response);
-                if (friendData.success == "true") {
-                    GameObject newButton = Instantiate(buttonPrefab) as GameObject;
-                    newButton.transform.GetChild(0).GetComponent<Text>().text = "@" +  friendUsername.ToLower();
-                    newButton.GetComponent<Button>().onClick.AddListener(()=> {friendFunc(friendData.friendID, friendUsername, friendData.world_type);});
-                    newButton.transform.SetParent(panel.transform);   
-                    newButton.transform.localScale = new Vector3(1, 1, 1);  
-                } 
-                yield return response;
-            }
-        }
 
-        public void ToggleRequestPanel(GameObject acceptRejectPanel, GameObject friendRequest) {
-            acceptRejectPanel.SetActive(true);
-            friendRequest.SetActive(false);
-        }
-
-        public void SetUpAcceptRejectPanel(GameObject acceptRejectPanel, string requestUsername) {
-            acceptRejectPanel.transform.GetChild(0).GetComponent<Button>().onClick.AddListener(()=> {RejectRequest(requestUsername, acceptRejectPanel);});
-            acceptRejectPanel.transform.GetChild(1).GetComponent<Button>().onClick.AddListener(()=> {AcceptFriendRequest(requestUsername, acceptRejectPanel);});
-        }
-
-        void AcceptFriendRequest(string requestUsername, GameObject panel) {
-            object friendID = requestKeys[requestUsername];
-            SendNotification(friendID.ToString(), "accepted your request!");
-            RemoveRequestFromFirebase(requestUsername);
-            panel.transform.parent.gameObject.SetActive(false);
-            Destroy(panel.transform.parent);
-            StartCoroutine(AddFriend(requestUsername, "https://circles-parellano.herokuapp.com/api/add-friend", FriendListContent, PrefabFriendButton, FriendCallback));
-        }
+     
 
         public void SendNotification(string externalPlayerID, string message) {
             Dictionary<string, object> notification = new Dictionary<string, object>();
@@ -219,93 +267,65 @@ namespace Spaces {
         }
 
 
-        void RejectRequest(string requestUsername, GameObject panel) {
-            RemoveRequestFromFirebase(requestUsername);
-            panel.transform.parent.gameObject.SetActive(false);
-            Destroy(panel.transform.parent);
-        }
-
-        void RemoveRequestFromFirebase(string requestUsername) {
-            DatabaseReference reference = FirebaseDatabase.DefaultInstance.RootReference;
-            requestKeys.Remove(requestUsername);
-            Dictionary<string, object> requests = new Dictionary<string, object>
-            {
-                    { "requests", requestKeys },
-            };
-            reference.Child("users").Child(username).UpdateChildrenAsync(requests);
-        }
-
-        // TODO : add success when the user was able to add friend ; add error when the username was not found
-
-        public void SendFriendRequest(string friendUsername) {
-            Dictionary<string, object> requestsFromFriend = new Dictionary<string, object>();
-            DatabaseReference reference = FirebaseDatabase.DefaultInstance.RootReference;
-            Debug.Log("zz username: " + friendUsername);
-            uiManagerScript.LoadingFriendRequest();
-            StartCoroutine(SendRequestNotif());
-            reference.Child("users").Child(friendUsername).GetValueAsync().ContinueWith(task => {
-                DataSnapshot snapshot = task.Result;
-                if (!snapshot.Exists) {
-                    sendRequestExtID = "failed";
-                    Debug.Log("zz no user with that username");
-                    return;
-                }
-                Debug.Log("inside trquqest");
-                Dictionary<string, object> data = snapshot.Value as Dictionary<string, object>;
-                requestsFromFriend.Add(username, roomID);
-                Dictionary<string, object> requests = new Dictionary<string, object>
-                {
-                        { "requests", requestsFromFriend },
-                };
-                sendRequestExtID = data["id"].ToString();
-                reference.Child("users").Child(friendUsername).UpdateChildrenAsync(requests);
-            });
-        }
-
-        // need to do it here because of async in firebase and permits in unity
-        IEnumerator SendRequestNotif() {
-            while(sendRequestExtID == "null") {
-                yield return null;
-            }
-            if (sendRequestExtID != "failed") {
-                uiManagerScript.ResultFriendRequest(true);
-                SendNotification(sendRequestExtID, "has added you as a friend!");
+        IEnumerator SendGroupRequest(string groupName, GameObject panel, GameObject buttonPrefab, GroupButtonCallback callback) {
+            WWWForm form = new WWWForm();
+            form.AddField("userID", roomID);
+            form.AddField("name", groupName);
+            uiManagerScript.LoadingGroupCreation();
+            UnityWebRequest www = UnityWebRequest.Post("https://circles-parellano.herokuapp.com/api/create-group-world", form);
+            yield return www.SendWebRequest();
+            if(www.isNetworkError || www.isHttpError) {
+                Debug.Log(www.error);
+                uiManagerScript.ResultGroupCreation(false);
             } else {
-                uiManagerScript.ResultFriendRequest(false);
+                string response = www.downloadHandler.text;
+                GroupData group = JsonUtility.FromJson<GroupData>(response);
+                GameObject newButton = Instantiate(buttonPrefab) as GameObject;
+                newButton.transform.GetChild(1).GetChild(1).GetComponent<TMPro.TextMeshProUGUI>().text = group.name;
+                newButton.GetComponent<Button>().onClick.AddListener(()=> {callback(group.name, group.code, group);});
+                newButton.transform.SetParent(panel.transform);     
+                newButton.transform.localScale = new Vector3(1, 1, 1);  
+                uiManagerScript.ResultGroupCreation(true);
+                yield return response;
             }
-            sendRequestExtID = "null";
         }
 
-        public void SetUpRequests() {
-            RequestPanels = new List<GameObject>();
-            requestKeys = new Dictionary<string, object>();
-            DatabaseReference reference = FirebaseDatabase.DefaultInstance.RootReference;
-            reference.Child("users").Child(username).Child("requests").ValueChanged += HandleRequestsUpdate;
-        }
 
-        void HandleRequestsUpdate(object sender, ValueChangedEventArgs arg) {
-            if (this == null)  {
-                DatabaseReference reference = FirebaseDatabase.DefaultInstance.RootReference;
-                reference.Child("users").Child(username).Child("requests").ValueChanged -= HandleRequestsUpdate;
-                return;
-            }
-            if (!arg.Snapshot.Exists) {
-                return;
-            }
-            Dictionary<string, object> requests = arg.Snapshot.Value as Dictionary<string, object>;
-            foreach(KeyValuePair<string, object> request in requests) {
-                if (!requestKeys.ContainsKey(request.Key)) {
-                    GameObject requestPanel = Instantiate(requestPanelPrefab) as GameObject;
-                    requestPanel.transform.GetChild(0).GetChild(0).GetComponent<Text>().text = "@" + request.Key.ToString().ToLower() + " added you as a friend";
-                    Button requestPanelbutton = requestPanel.transform.GetChild(0).GetComponent<Button>();
-                    requestPanelbutton.onClick.AddListener(()=> {ToggleRequestPanel(requestPanel.transform.GetChild(1).gameObject, requestPanel.transform.GetChild(0).gameObject);});
-                    SetUpAcceptRejectPanel(requestPanel.transform.GetChild(1).gameObject, request.Key.ToString());
-                    requestPanel.transform.SetParent(RequestListContent.transform);   
-                    requestPanel.transform.localScale = new Vector3(1, 1, 1); 
-                    RequestPanels.Add(requestPanel);
-                    requestKeys.Add(request.Key, request.Value);
+        IEnumerator JoinGroupRequest(string groupCode, GameObject panel, GameObject buttonPrefab, GroupButtonCallback callback) {
+            WWWForm form = new WWWForm();
+            form.AddField("userID", roomID);
+            form.AddField("code", groupCode);
+            UnityWebRequest www = UnityWebRequest.Post("https://circles-parellano.herokuapp.com/api/join-group-world", form);
+            yield return www.SendWebRequest();
+            if(www.isNetworkError || www.isHttpError) {
+                Debug.Log(www.error);
+                uiManagerScript.ResultGroupJoin(false);
+            } else {
+                string response = www.downloadHandler.text;
+                Debug.Log("zz resp " + response);
+                GroupData group = JsonUtility.FromJson<GroupData>(response);
+                if (group.name == null) {
+                    Debug.Log("zz error ");
+                    uiManagerScript.ResultGroupJoin(false);
+                } else {
+                    GameObject newButton = Instantiate(buttonPrefab) as GameObject;
+                    newButton.transform.GetChild(1).GetChild(1).GetComponent<TMPro.TextMeshProUGUI>().text = group.name;
+                    newButton.GetComponent<Button>().onClick.AddListener(()=> {callback(group.name, group.code, group);});
+                    newButton.transform.SetParent(panel.transform);     
+                    newButton.transform.localScale = new Vector3(1, 1, 1);  
+                    uiManagerScript.ResultGroupJoin(true);
                 }
+                yield return response;
             }
         }
+
+        public void GoBackToGroups() {
+            uiManagerScript.BackToGroups();
+            foreach(Transform child in OpenGroupPanel.transform) {
+                if (child.gameObject.name.ToCharArray()[0] != '1')
+                Destroy(child.gameObject);
+            }
+        }
+
     }
 }

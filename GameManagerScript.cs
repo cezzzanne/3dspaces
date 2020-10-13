@@ -116,7 +116,8 @@ namespace Spaces {
 
         void Start() {
             LoadingScreen.SetActive(true);
-            currentWorldType =  PlayerPrefs.GetString("currentWorldType");
+            PlayerPrefs.SetString("currentWorldType", "MainGame");
+            currentWorldType = PlayerPrefs.GetString("currentWorldType");
             roomIDToJoin = PlayerPrefs.GetString("currentRoomID");
             myUsername = PlayerPrefs.GetString("username");
             string currentSkin = PlayerPrefs.GetString("CurrentSkin");
@@ -158,7 +159,7 @@ namespace Spaces {
         }
 
         public override void OnJoinRoomFailed(short returnCode, string message) {
-            Debug.Log("failed to join room");
+            Debug.Log("zzz failed to join room");
             base.OnJoinRoomFailed(returnCode, message);
             Debug.Log(message);
             Debug.Log("going to create room now");
@@ -167,7 +168,7 @@ namespace Spaces {
         }
 
         public override void OnCreateRoomFailed(short returnCode, string message) {
-            Debug.Log("failed to create room");
+            Debug.Log("zz failed to create room");
             base.OnCreateRoomFailed(returnCode, message);
             Debug.Log("failed to create room");
         }
@@ -215,10 +216,11 @@ namespace Spaces {
             // worldType = "TestWorld";
             previousWorldType = currentWorldType;
             currentWorldType = worldType;
-            LoadingScreen.SetActive(true);
             if (roomIDToJoin == newRoomID) {
+                Debug.Log("zz same fucking room");
                 return;
             }
+            LoadingScreen.SetActive(true);
             PlayerPrefs.SetString("currentRoomID", newRoomID);
             PlayerPrefs.SetString("currentRoomUsername", username);
             PlayerPrefs.SetString("currentWorldType", worldType);
@@ -240,9 +242,10 @@ namespace Spaces {
                 GameObject terrain = Resources.Load<GameObject>("Worlds/" + currentWorldType + "-Terrain");
                 GameObject prebuiltTerrain = Resources.Load<GameObject>("Worlds/" + currentWorldType + "-PrebuiltTerrain");
                 currentTerrain = Instantiate(terrain);
-                ItemController.GetComponent<ItemPlacementController>().SetTerrain(currentTerrain);
+                // ItemController.GetComponent<ItemPlacementController>().SetTerrain(currentTerrain);
                 currentPrebuiltTerrain = Instantiate(prebuiltTerrain);
             }
+
             if (myRoomID == roomIDToJoin) {
                 CurrentRoomUsername.SetActive(false);
                 LogToFirebase(myUsername.ToLower() + "'s World", 1);
@@ -253,11 +256,12 @@ namespace Spaces {
                 }
                 CurrentRoomUsername.transform.GetChild(0).GetComponent<TMPro.TextMeshProUGUI>().text = "@" + currentUsername.ToLower();
                 LogToFirebase(currentUsername.ToLower() + "'s World", 1);
-                SendNotification(roomIDToJoin);
+                SendNotification(currentUsername);
             }
             GameObject oldTerrain = GameObject.FindGameObjectWithTag("ModifiedTerrain");
             Destroy(oldTerrain);
             GameObject newTerrain = Instantiate(ModTerrainPrefab) as GameObject;
+            ItemController.GetComponent<ItemPlacementController>().SetTerrain(newTerrain);
             // todo : this is wrong; I should be checking the transform of something else but definetly no this transform
             if (!(transform.childCount > 0)) {
                 SaveSystem.LoadSpace(roomIDToJoin, newTerrain, null);
@@ -266,18 +270,21 @@ namespace Spaces {
         }
 
         public override void OnPlayerLeftRoom(Photon.Realtime.Player otherPlayer) {
-            Debug.Log("player leaving");
             base.OnPlayerLeftRoom(otherPlayer);
             CharacterScript otherScript = (otherPlayer.TagObject as GameObject).GetComponent<CharacterScript>();
-            PhotonNetwork.DestroyPlayerObjects(otherPlayer);   
+            PhotonNetwork.DestroyPlayerObjects(otherPlayer);
         }
 
-        public void SendNotification(string externalPlayerID) {
-            Dictionary<string, object> notification = new Dictionary<string, object>();
-            notification["headings"] = new Dictionary<string, string>() { {"en", "Someone is in your world 🌎" } };
-            notification["contents"] = new Dictionary<string, string>() { {"en", "@" + myUsername.ToLower() + " is visiting you! Come say hi 👋" } };
-            notification["include_player_ids"] = new List<string>() { externalPlayerID };
-            OneSignal.PostNotification(notification);
+        public void SendNotification(string friendUsername) {
+            DatabaseReference reference = FirebaseDatabase.DefaultInstance.RootReference;
+            reference.Child("usernameList").Child(friendUsername).GetValueAsync().ContinueWith(task => {
+                DataSnapshot snapshot = task.Result;
+                Dictionary<string, object> notification = new Dictionary<string, object>();
+                notification["headings"] = new Dictionary<string, string>() { {"en", "Someone is in your world 🌎" } };
+                notification["contents"] = new Dictionary<string, string>() { {"en", "@" + myUsername.ToLower() + " is visiting you! Come say hi 👋" } };
+                notification["include_player_ids"] = new List<string>() { snapshot.Value.ToString().Trim() };
+                OneSignal.PostNotification(notification);
+            });
         }
 
 

@@ -15,32 +15,26 @@ namespace Spaces {
         InnerNotifManagerScript notificaiton;
 
         private bool initialSetup = true;
+        private string locationString = "";
 
-        void OnApplicationQuit() {
+        void Start() {
+            username = transform.GetChild(1).GetChild(1).GetComponent<TMPro.TextMeshProUGUI>().text.Split('@')[1];
             DatabaseReference reference = FirebaseDatabase.DefaultInstance.RootReference;
-            reference.Child("users").Child(username).ValueChanged -= HandleLocationUpdate;
-        }
-        void OnDestroy() {
-            DatabaseReference reference = FirebaseDatabase.DefaultInstance.RootReference;
-            reference.Child("users").Child(username).ValueChanged -= HandleLocationUpdate;
-        }
-
-        public void TriggerStart() {
-            username = transform.GetChild(0).GetComponent<Text>().text.Split('@')[1];
-            DatabaseReference reference = FirebaseDatabase.DefaultInstance.RootReference;
-            reference.Child("users").Child(username).ValueChanged += HandleLocationUpdate;
-            notificaiton = GameObject.FindGameObjectWithTag("NotificationManager").GetComponent<InnerNotifManagerScript>();
+            StartCoroutine(UpdateStatus());
+            reference.Child("users").Child(username).GetValueAsync().ContinueWith(task => {
+                DataSnapshot snapshot = task.Result;
+                Debug.Log("zz snapshot " + snapshot.Value);
+                Dictionary<string, object> data = snapshot.Value as Dictionary<string, object>;
+                locationString = FormatString(data);
+            });
+            // notificaiton = GameObject.FindGameObjectWithTag("NotificationManager").GetComponent<InnerNotifManagerScript>();
         }
 
-        private void HandleLocationUpdate(object sender, ValueChangedEventArgs arg) {
-            if (this == null) {
-                DatabaseReference reference = FirebaseDatabase.DefaultInstance.RootReference;
-                reference.Child("users").Child(username).ValueChanged -= HandleLocationUpdate;
-                return;  
+        IEnumerator UpdateStatus() {
+            while (locationString == "") {
+                yield return null;
             }
-            Dictionary<string, object> data = arg.Snapshot.Value as Dictionary<string, object>;
-            string locationString = FormatString(data);
-            transform.GetChild(1).GetComponent<TMPro.TextMeshProUGUI>().text = locationString;
+            transform.GetChild(1).GetChild(2).GetComponent<TMPro.TextMeshProUGUI>().text = locationString;
         }
 
         string FormatString(Dictionary<string, object> data) {
@@ -71,15 +65,10 @@ namespace Spaces {
                 }
             }
             if (when == "currently in" && !initialSetup) {
-                notificaiton.SendNotification("@" + username + " is at " + place);
+                // notificaiton.SendNotification("@" + username + " is at " + place);
             }
             initialSetup = false;
             return when + " " + place;
-        }
-
-
-        void Update() {
-            
         }
     }
 }

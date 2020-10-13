@@ -40,6 +40,15 @@ public class UIManagerScript : MonoBehaviour {
 
     public GameObject AddFriendB, AddFriendForm, LoadingFriendReqB, SuccessFriendReqB, ErrorFriendReqB;
 
+    public GameObject InviteFriendB, InviteFriendForm, SuccessFriendInviteB, ErrorFriendInviteB, LoadingFriendInvite;
+
+    public GameObject JoinGroupB, JoinGroupForm, SuccessJoinGroup, ErrorJoinGroup, LoadingJoinGroup;
+
+    public GameObject GroupFriendsPanel;
+
+    public GameObject InGroupsTopTab, InRequestsTopTab, BackToGroupsTopTab;
+
+    public GameObject MovePanel, PlacePanel, ShadowMove, ShadowPlace;
 
     void Start() {
         inMyRoom = PlayerPrefs.GetString("currentRoomID") == PlayerPrefs.GetString("myRoomID");
@@ -88,9 +97,10 @@ public class UIManagerScript : MonoBehaviour {
         }
     }
 
-    public void FriendCallback() {
+    public void GoToFriendsRoom() {
         inMyRoom = false;
         SetInitialState();
+        BackToGroups();
     }
 
     public void GoHomeCallback() {
@@ -147,10 +157,16 @@ public class UIManagerScript : MonoBehaviour {
 
     public void IsPlacingItem() {
         //
-        placeItemB.SetActive(true);
-        clearItemB.SetActive(true);
-        joystick.SetActive(true);
-        rotateB.SetActive(true);
+        // placeItemB.SetActive(true);
+        // clearItemB.SetActive(true);
+        // joystick.SetActive(true);
+        // rotateB.SetActive(true);
+        joystick.SetActive(false);
+        MovePanel.SetActive(true);
+        ShadowMove.SetActive(true);
+        PlacePanel.SetActive(true);
+        ShadowPlace.SetActive(true);
+        PlacePanel.SetActive(true);
         confirmItemB.SetActive(false);
         nextItemB.SetActive(false);
         prevItemB.SetActive(false);
@@ -160,6 +176,10 @@ public class UIManagerScript : MonoBehaviour {
     }
 
     public void PlacedItem() {
+        MovePanel.SetActive(false);
+        PlacePanel.SetActive(false);
+        ShadowMove.SetActive(false);
+        ShadowPlace.SetActive(false);
         placeItemB.SetActive(false);
         clearItemB.SetActive(false);
         rotateB.SetActive(false);
@@ -197,31 +217,131 @@ public class UIManagerScript : MonoBehaviour {
         friendsPanelOpen = !friendsPanelOpen;
     }
 
-    public void AddFriendUsername() {
+    public void AddGroupUsername() {
         AddFriendB.SetActive(false);
         AddFriendForm.SetActive(true);
     }
 
-    public void LoadingFriendRequest() {
+    public void JoinGroup() {
+        JoinGroupB.SetActive(false);
+        JoinGroupForm.SetActive(true);
+    }
+
+    public void HideJoinGroupForm() {
+        JoinGroupB.SetActive(true);
+        JoinGroupForm.SetActive(false);
+    }
+
+    public void InviteFriend() {
+        InviteFriendB.SetActive(false);
+        InviteFriendForm.SetActive(true);
+    }
+
+    public void HideInviteFriendForm() {
+        InviteFriendB.SetActive(true);
+        InviteFriendForm.SetActive(false);
+    }
+
+    public void LoadingInviteFriend() {
+        InviteFriendForm.SetActive(false);
+        LoadingFriendInvite.SetActive(true);
+    }
+    public void ResultFriendInvite(bool success) {
+        LoadingFriendInvite.SetActive(false);
+        if (success) {
+            SuccessFriendInviteB.SetActive(true);
+        } else {
+            ErrorFriendInviteB.SetActive(true);
+        }
+        StartCoroutine(RevertInvite(success));
+    }
+    public void LoadingGroupCreation() {
         AddFriendForm.SetActive(false);
         LoadingFriendReqB.SetActive(true);
     }
 
-    public void ResultFriendRequest(bool success) {
+    public void ResultGroupCreation(bool success) {
         LoadingFriendReqB.SetActive(false);
         if (success) {
             SuccessFriendReqB.SetActive(true);
         } else {
             ErrorFriendReqB.SetActive(true);
         }
-        StartCoroutine(RevertFriendRequestResult());
+        StartCoroutine(RevertGroupCreation(success));
     }
 
-    IEnumerator RevertFriendRequestResult() {
+    public void LoadingJoin() {
+        JoinGroupForm.SetActive(false);
+        LoadingJoinGroup.SetActive(true);
+    }
+
+    // refactor and make more abstract all this code
+
+
+    public void ResultGroupJoin(bool success) {
+        LoadingJoinGroup.SetActive(false);
+        if (success) {
+            SuccessJoinGroup.SetActive(true);
+        } else {
+            ErrorJoinGroup.SetActive(true);
+        }
+        StartCoroutine(RevertGroupJoin(success));
+    }
+
+    IEnumerator RevertGroupCreation(bool success) {
         yield return new WaitForSeconds(3);
         SuccessFriendReqB.SetActive(false);
         ErrorFriendReqB.SetActive(false);
         AddFriendB.SetActive(true);
+        if (success) {
+            GoToGroups();
+        }
     }
 
+    IEnumerator RevertGroupJoin(bool success) {
+        yield return new WaitForSeconds(3);
+        SuccessJoinGroup.SetActive(false);
+        ErrorJoinGroup.SetActive(false);
+        JoinGroupB.SetActive(true);
+        if (success) {
+            GoToGroups();
+        }   
+    }
+
+    IEnumerator RevertInvite(bool success) {
+        yield return new WaitForSeconds(3);
+        SuccessFriendInviteB.SetActive(false);
+        ErrorFriendInviteB.SetActive(false);
+        InviteFriendB.SetActive(true); 
+    }
+
+    public void OpenGroup() {
+        GroupFriendsPanel.SetActive(true);
+        FriendsPanel.SetActive(false);
+        RequestsPanel.SetActive(false); // only for precaution
+        BackToGroupsTopTab.SetActive(true);
+        InGroupsTopTab.SetActive(false);
+    }
+
+    public void GoToRequests() {
+        InGroupsTopTab.SetActive(false);
+        InRequestsTopTab.SetActive(true);
+        RequestsPanel.SetActive(true);
+        FriendsPanel.SetActive(false);
+    }
+
+    public void GoToGroups() {
+        FriendsPanel.SetActive(true);
+        RequestsPanel.SetActive(false);
+        InRequestsTopTab.SetActive(false);
+        InGroupsTopTab.SetActive(true);
+    }
+
+    public void BackToGroups() {
+        // add invite to group button at top of group
+        BackToGroupsTopTab.SetActive(false);
+        InGroupsTopTab.SetActive(true);
+        GroupFriendsPanel.SetActive(false);
+        FriendsPanel.SetActive(true);
+    }
 }

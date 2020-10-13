@@ -41,6 +41,7 @@ namespace Spaces {
 
         void Update() {
             if (keyboard != null) {
+                // comment out to test on editor
                 if (keyboard.active && TouchScreenKeyboard.visible) {
                     toolbar.SetActive(true);
                     toolbar.transform.position = new Vector3(toolbar.transform.position.x, TouchScreenKeyboard.area.height, toolbar.transform.position.z);

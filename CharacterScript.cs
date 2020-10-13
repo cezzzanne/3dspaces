@@ -68,7 +68,7 @@ namespace Spaces {
                 mainCam = Resources.Load("Main Camera") as GameObject;
                 mainCam = Instantiate(mainCam);
                 PlayerFollow cameraScript = mainCam.GetComponent<PlayerFollow>();
-                cameraScript.SetCameraTarget(transform);
+                cameraScript.SetCameraTarget(transform, inPublicRoom);
                 GameObject itemControllerObject = GameObject.FindGameObjectWithTag("ItemPlacementController") as GameObject;
                 PV = transform.GetComponent<PhotonView>();
                 username = PlayerPrefs.GetString("username");
@@ -179,12 +179,6 @@ namespace Spaces {
               if (publicWorld == 1) {
                   pos = new Vector3(447.5852f, 0, 335.4253f);
               } else {
-                // if (PlayerPrefs.HasKey("editingPosition")) {
-                //     string[] positions = PlayerPrefs.GetString("editingPosition").Split(':');
-                //     pos = new Vector3(float.Parse(positions[0]), float.Parse(positions[1]) + 2, float.Parse(positions[2]));
-                // } else {
-                //     pos = new Vector3(365.3f, 0.0f, 438.7f);
-                // }
                 pos = new Vector3(2, 0, 2);
               }
             Quaternion rot = Quaternion.identity;
@@ -270,6 +264,10 @@ namespace Spaces {
             Destroy(camera);
         }
 
+        public void SetMainCamEditing(Transform placeableObject, bool isPlacingItem) {
+            mainCam.GetComponent<PlayerFollow>().NowFollowing(placeableObject, isPlacingItem);
+        }
+
         [PunRPC]
         void RPC_ChangeCharacterName(string name, int pvID) {
             // 0 = private; 1 = public
@@ -281,9 +279,9 @@ namespace Spaces {
                 nameCanvas = PhotonView.Find(pvID).transform.GetChild(4).gameObject;
             }
             nameCanvas.SetActive(true);
-            TMPro.TextMeshProUGUI playerName = nameCanvas.transform.GetChild(0).GetChild(0).GetComponent<TMPro.TextMeshProUGUI>();
+            TMPro.TextMeshProUGUI playerName = nameCanvas.transform.GetChild(0).GetChild(0).GetChild(0).GetComponent<TMPro.TextMeshProUGUI>();
             if (photonView.IsMine && (inPublicRoom == 0)) {
-                Destroy(playerName);
+                Destroy(nameCanvas);
                 return;
             }
 
@@ -296,7 +294,7 @@ namespace Spaces {
             if (inPublicRoom == 0) {
                 return;
             }
-            TMPro.TextMeshProUGUI chatCanvas = PhotonView.Find(pvID).transform.GetChild(4).GetChild(1).GetChild(0).GetComponent<TMPro.TextMeshProUGUI>();
+            TMPro.TextMeshProUGUI chatCanvas = PhotonView.Find(pvID).transform.GetChild(4).GetChild(1).GetChild(1).GetComponent<TMPro.TextMeshProUGUI>();
             chatCanvas.text = message;
         }
 

@@ -29,26 +29,31 @@ public  struct SpacesDataJson {
 }
 public class SaveSystem: MonoBehaviour {
 
+    private string myUserID = "";
 
-
-
-    public void SaveSpace(GameObject terrain, Transform player, int id) {
-        SpaceData data = new SpaceData(terrain, player, id);
-        StartCoroutine(MakeRequestSaveData("https://circles-parellano.herokuapp.com/api/save-world", data));
+    public void SaveSpace(Dictionary<string, object> data, Transform player, int id) {
+        // SpaceData data = new SpaceData(terrain, player, id);
+        StartCoroutine(MakeRequestSaveData("https://circles-parellano.herokuapp.com/api/save-world", data, id));
     } 
 
 
-    static IEnumerator MakeRequestSaveData(string url, SpaceData data) {
+    static IEnumerator MakeRequestSaveData(string url, Dictionary<string, object> data, int id) {
         WWWForm form = new WWWForm();
-        string world = JsonUtility.ToJson(data.world);
-        form.AddField("userID", PlayerPrefs.GetString("myRoomID"));
-        form.AddField("data", world);
+        string world = JsonUtility.ToJson(data);
+        form.AddField("userID", id.ToString());
+        form.AddField("name", data["name"] as string);
+        form.AddField("xPos", data["xPos"].ToString());
+        form.AddField("yPos", data["yPos"].ToString());
+        form.AddField("zPos", data["zPos"].ToString());
+        form.AddField("yRot", data["yRot"].ToString());
         UnityWebRequest www = UnityWebRequest.Post(url, form);
         yield return www.SendWebRequest();
         if(www.isNetworkError || www.isHttpError) {
             Debug.Log(www.error);
+            Debug.Log("zzzz error ");
         } else {
             string response = www.downloadHandler.text;
+            Debug.Log("zzzz response" + response);
             yield return response;
         }
     }

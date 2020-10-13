@@ -64,6 +64,17 @@ namespace Spaces {
         public GameObject uiManager;
 
         private UIManagerScript uiManagerScript;
+
+        private Vector3 pastPostion;
+
+        private float forwardInput, rightInput = 0;
+        private float sideInput;
+
+        private bool beingPressed, isForward, isReversed = false;
+
+        public float speed = 1f;
+
+        public GameObject SpeedIndicator;
         
 
         void Start() {
@@ -104,33 +115,69 @@ namespace Spaces {
 
         void FixedUpdate() {
             if (currentPlaceableObject != null) {
+                forwardInput = 0;
+                rightInput = 0;
+                if (beingPressed) {
+                    if (isForward) {
+                        forwardInput = speed;
+                        if (isReversed) {
+                            forwardInput = -speed;
+                        }
+                    } else {
+                        rightInput = speed;
+                        if (isReversed) {
+                            rightInput = -speed;
+                        }
+                    }
+                }
                 MoveCurrentPlaceableObject();
             }
         }
 
-        public void ReleaseIfClicked() {
-            foreach(Material m in currentPlaceableObject.GetComponentInChildren<MeshRenderer>().materials) {
-                    m.shader = Shader.Find("Standard (Specular setup)");
+        public void SetSpeed() {
+            if (speed == 1f) {
+                speed = 2f;
+                SpeedIndicator.transform.GetChild(0).gameObject.SetActive(false);
+                SpeedIndicator.transform.GetChild(1).gameObject.SetActive(true);
+            } else if (speed == 2f) {
+                speed = 2.5f;
+                SpeedIndicator.transform.GetChild(1).gameObject.SetActive(false);
+                SpeedIndicator.transform.GetChild(2).gameObject.SetActive(true);
+            } else {
+                speed = 1f;
+                SpeedIndicator.transform.GetChild(2).gameObject.SetActive(false);
+                SpeedIndicator.transform.GetChild(0).gameObject.SetActive(true);
+
             }
+        }
+
+        public void ReleaseIfClicked() {
+            // foreach(Material m in currentPlaceableObject.GetComponentInChildren<MeshRenderer>().materials) {
+            //         m.shader = Shader.Find("Standard (Specular setup)");
+            // }
             currentPlaceableObject.GetComponent<Rigidbody>().isKinematic = true;
             currentPlaceableObject.GetComponent<Rigidbody>().freezeRotation = true;
             currentPlaceableObject.GetComponent<Rigidbody>().constraints = RigidbodyConstraints.FreezePositionX | RigidbodyConstraints.FreezePositionY | RigidbodyConstraints.FreezePositionZ;
             currentPlaceableObject.transform.SetParent(terrain.transform);
             if (currentPlaceableObject.gameObject.name == "000ModernHouse(Clone)") {
-                Debug.Log("is clone");
                 currentPlaceableObject.transform.position = new Vector3(currentPlaceableObject.transform.position.x, 0, currentPlaceableObject.transform.position.z);
             }
+            float xPos = currentPlaceableObject.transform.position.x;
+            float yPos = currentPlaceableObject.transform.position.y;
+            float zPos= currentPlaceableObject.transform.position.z;
+            float yRot = currentPlaceableObject.transform.eulerAngles.y;
+            Dictionary<string, object> objectData = new Dictionary<string, object> {
+                {"xPos", xPos},
+                {"yPos", yPos},
+                {"zPos", zPos},
+                {"yRot", yRot},
+                {"name", currentPlaceableObject.name}
+            };
+            target.gameObject.SetActive(true);
+            target.GetComponent<CharacterScript>().SetMainCamEditing(target, false);
             currentPlaceableObject = null;
-            // startEditingButton.SetActive(true);
-            // clearButton.SetActive(false);
-            // placeButton.SetActive(false);
-            // goBackButton.SetActive(true);
-            // rotateButton.SetActive(false);
-            // editAvatarButton.SetActive(true);
-            // PlayerPrefs.DeleteKey("CurrentItem");
             uiManagerScript.PlacedItem();
-            target.localScale = new Vector3(0.5f, 0.5f, 0.5f);
-            saveSystem.SaveSpace(terrain, target, int.Parse(myRoomID));
+            saveSystem.SaveSpace(objectData, target, int.Parse(myRoomID));
         }
 
         private void RotateOnKey() {
@@ -151,11 +198,10 @@ namespace Spaces {
             if (colliders.Length > 0) {
                 Collider collider = null;
                 for (int i = 0; i < colliders.Length; i++) {
-                    if (colliders[i].gameObject.name != "MainGame-Terrain(Clone)" && colliders[i].gameObject != currentPlaceableObject.gameObject && colliders[i].gameObject.name != "Small-House(Clone)") {
+                    if (colliders[i].gameObject.name != "MainGame-Terrain(Clone)" && colliders[i].gameObject != currentPlaceableObject.gameObject) {
                         contactWithCollider = true;
                         if (collider != null) {
                             Collider temp = colliders[i];
-                            Debug.Log("changing collider ----------");
                             collider = (collider.bounds.center.y + collider.bounds.extents.y + collider.transform.position.y) >= (temp.bounds.center.y + temp.bounds.extents.y + temp.transform.position.y) ? collider : temp;
                         } else {
                             collider = colliders[i];
@@ -163,9 +209,7 @@ namespace Spaces {
                     }
                 }
                 if (contactWithCollider && !collider.isTrigger) {
-                    Debug.Log("COLLIDING WITH : " + collider.gameObject.name);
                     Vector3 pos = currentPlaceableObject.transform.position;
-                    pos = target.position + (target.forward * ((maxWidthObject * 1.2f)  + characterWidth + 0.5f));
                     // pos.y = (collider.bounds.center.y + collider.bounds.extents.y + collider.transform.position.y - 0.0001f);
                     float length = collider.transform.localScale.x * ((BoxCollider)collider).size.x;
                     float width = collider.transform.localScale.z * ((BoxCollider)collider).size.z;
@@ -176,48 +220,51 @@ namespace Spaces {
                     float topMost = collider.transform.position.y + dimensions.y ;
                     pos.y = topMost;
                     currentPlaceableObject.transform.position = pos;  
+                    currentPlaceableObject.transform.position = currentPlaceableObject.transform.position + (currentPlaceableObject.transform.forward * 0.1f * forwardInput);
+                    currentPlaceableObject.transform.position = currentPlaceableObject.transform.position + (currentPlaceableObject.transform.right * 0.1f * rightInput);
                 } else {
-                    Debug.Log("Hitting floor");
-                    currentPlaceableObject.transform.position = target.position + (target.forward * ((maxWidthObject * 1.2f)  + characterWidth + 0.5f));
+                    // currentPlaceableObject.transform.position = target.position + (target.forward* ((maxWidthObject * 1.2f)  + characterWidth + 0.5f));
+                    Vector3 pos = currentPlaceableObject.transform.position;
+                    pos.y = 0;
+                    currentPlaceableObject.transform.position = pos;
+                    currentPlaceableObject.transform.position = currentPlaceableObject.transform.position + (currentPlaceableObject.transform.forward * 0.1f * forwardInput);
+                    currentPlaceableObject.transform.position = currentPlaceableObject.transform.position + (currentPlaceableObject.transform.right * 0.1f * rightInput);
                 }  
             } else {
-                currentPlaceableObject.transform.position = target.position + (target.forward * ((maxWidthObject * 1.2f)  + characterWidth + 0.5f));
+                Vector3 pos = currentPlaceableObject.transform.position;
+                pos.y = 0;
+                currentPlaceableObject.transform.position = pos;
+                currentPlaceableObject.transform.position = currentPlaceableObject.transform.position + (currentPlaceableObject.transform.forward * 0.1f * forwardInput);
+                currentPlaceableObject.transform.position = currentPlaceableObject.transform.position + (currentPlaceableObject.transform.right * 0.1f * rightInput);
+
             }
+        }
+
+        public void SetForwardInput(bool pressed, bool forward, bool reversed) {
+            beingPressed = pressed;
+            isForward = forward;
+            isReversed = reversed;
         }
 
         public void HandleNewObjectHotKey(GameObject prefab) {
             // when a button presses I can hardcode what number each item is (find more elegant way) 
             if (currentPlaceableObject == null) {
-                    // startEditingButton.SetActive(false);
-                    // goBackButton.SetActive(false);
-                    // clearButton.SetActive(true);
-                    // placeButton.SetActive(true);
-                    // rotateButton.SetActive(true);
-                    // editAvatarButton.SetActive(false);
-                    // hideListOfObjects();
                     currentPlaceableObject = Instantiate(prefab) as GameObject;
                     Rigidbody rBody = currentPlaceableObject.GetComponent<Rigidbody>();
-                    // rBody.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
-                    // rBody.mass = 10;
-                    // rBody.drag = 10;
-                    // rBody.angularDrag = 0.99f;
                     rBody.useGravity = false;
                     rBody.isKinematic = true;
-                    // currentPlaceableObject.transform.localScale = currentPlaceableObject.transform.localScale * 3;
                     BoxCollider bCollider = currentPlaceableObject.GetComponent<BoxCollider>();
                     MeshRenderer meshRenderer = currentPlaceableObject.GetComponentInChildren<MeshRenderer>();
                     Transform tr = currentPlaceableObject.transform;
-                    // maxWidthObject =  (tr.localScale.x ) >= (tr.localScale.z )  ? (tr.localScale.x ) : (tr.localScale.z);
                     maxWidthObject = bCollider.bounds.size.x >= bCollider.bounds.size.z ? bCollider.bounds.size.x : bCollider.bounds.size.z;
-                    // Debug.Log(currentPlaceableObject.name.Substring(0, stringLength));
                     characterWidth = target.GetComponent<CapsuleCollider>().bounds.size.x;
-                    // target.localScale = new Vector3(0, 0.5f, 0);
                     Vector3 tempPos = target.position;
-                    tempPos.y = 0;
-                    currentPlaceableObject.transform.position = target.position + (target.forward * ((maxWidthObject * 1.2f)  + characterWidth + 0.5f));
-                    foreach(Material m in meshRenderer.materials) {
-                        m.shader = Shader.Find("Unlit/Transparent Cutout");
-                    }
+                    target.gameObject.SetActive(false);
+                    target.GetComponent<CharacterScript>().SetMainCamEditing(currentPlaceableObject.transform, true); //  new
+                    currentPlaceableObject.transform.position = tempPos; //+ (target.forward * ((maxWidthObject * 1.2f)  + characterWidth + 0.5f)); //target.position + (target.forward * ((maxWidthObject * 1.2f)  + characterWidth + 0.5f));
+                    // foreach(Material m in meshRenderer.materials) {
+                    //     m.shader = Shader.Find("Unlit/Transparent Cutout");
+                    // }
                 } else {
             }
         }
@@ -225,11 +272,14 @@ namespace Spaces {
         public void RemoveCurrentPlaceableObject() {
             Destroy(currentPlaceableObject);
             uiManagerScript.PlacedItem();
+            target.gameObject.SetActive(true);
+            target.GetComponent<CharacterScript>().SetMainCamEditing(target, false);
             // PlayerPrefs.DeleteKey("CurrentItem");
             // ShowListOfObjects();
         }
 
         public void SetTerrain(GameObject ter) {
+            Debug.Log("zzzz");
             terrain = ter;
         }
 

@@ -72,7 +72,7 @@ namespace Spaces {
                 yield return null;
             }
             int amountOfCoins = 0;
-            float multiplier = 1 + (0.2f * int.Parse(consecutiveDays));
+            float multiplier = 1 + (0.1f * int.Parse(consecutiveDays));
             if (lastRequest == "none") {
                 amountOfCoins = 20;
                 lastRequest = DateTime.Now.ToString();
@@ -85,6 +85,7 @@ namespace Spaces {
                     amountOfCoins = Mathf.CeilToInt(15 * multiplier);
                     AddNewCoins(amountOfCoins);
                 } else {
+                    consecutiveDays = "";
                 }
             }
         }
@@ -113,6 +114,7 @@ namespace Spaces {
                     {"coinsInfo", coinsInfo}
                 };
                 reference.Child("users").Child(username).UpdateChildrenAsync(coinsData);
+                consecutiveDays = "";
             });
         }
 
