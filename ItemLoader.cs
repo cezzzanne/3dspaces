@@ -81,15 +81,13 @@ namespace Spaces {
                 else {
                     string response = www.downloadHandler.text;
                     yield return response;
-                    Debug.Log("purchasedItems: " + response);
                     storeDataObjects = new List<StoreItem>();
                     storeDataSkins = new List<StoreItem>();
                     StoreResponse fullData = JsonUtility.FromJson<StoreResponse>(response);
                     foreach(StoreItem item in fullData.data) {
-                        if (item.type == "skin") {
-                            CharacterChangeScript.AddToAvailableSkins(item);
+                        if (item.type == "skin" ||  item.type == "accessory") {
+                            CharacterChangeScript.AddToCharacterObjects(item.type == "skin", item);
                         } else {
-                            Debug.Log("7878: adding object : " +  item);
                             storeDataObjects.Add(item);
                         }
                     }
@@ -100,7 +98,6 @@ namespace Spaces {
 
 
     public void LoadItem() {
-        Debug.Log("indexx: " + purchasedItemsIndex);
         StoreItem item = storeDataObjects[purchasedItemsIndex];
         GameObject currentAsset = Resources.Load<GameObject>("StoreItems/" + item.location) as GameObject;
         GameObject instPrefab = Instantiate(currentAsset);
@@ -125,7 +122,6 @@ namespace Spaces {
                 LoadItems();
             } else {
                 if (!inEditing) {
-                    Debug.Log("111: fitting camera");
                     FitCamera();
                 }
             }
@@ -148,6 +144,11 @@ namespace Spaces {
             mainCam.ToggleCharacterChange();
             inEditing = !inEditing;
             uiManagerScript.ToggleCharacterChange();
+        }
+
+        public void ConfirmCharacterChange() {
+            CharacterChangeScript.ConfirmCharacterChanges();
+            ToggleCharacterChange();
         }
 
 

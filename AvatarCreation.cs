@@ -17,6 +17,8 @@ public class AvatarCreation : MonoBehaviour {
     private Material[] materialAssigner;
 
     public GameObject characterName;
+
+    public GameObject redWomanHair, brownWomanHair;
     Text characterText;
 
     // 1) finsih log in (should be pretty fast)
@@ -40,6 +42,18 @@ public class AvatarCreation : MonoBehaviour {
             index += 1;
         }
         transform.rotation = Quaternion.Euler(0, -90, 0);
+        string name = SkinList[index].name;
+        if ("casualFemaleB" == name) {
+            character.transform.parent.GetChild(1).GetChild(0).GetChild(0).GetChild(2).GetChild(0).GetChild(0).GetChild(1).GetChild(2).gameObject.SetActive(true);
+            character.transform.parent.GetChild(1).GetChild(0).GetChild(0).GetChild(2).GetChild(0).GetChild(0).GetChild(1).GetChild(1).gameObject.SetActive(false);
+        } else if ("casualFemaleA" == name) {
+            character.transform.parent.GetChild(1).GetChild(0).GetChild(0).GetChild(2).GetChild(0).GetChild(0).GetChild(1).GetChild(1).gameObject.SetActive(true);
+            character.transform.parent.GetChild(1).GetChild(0).GetChild(0).GetChild(2).GetChild(0).GetChild(0).GetChild(1).GetChild(2).gameObject.SetActive(false);
+        } else {
+            character.transform.parent.GetChild(1).GetChild(0).GetChild(0).GetChild(2).GetChild(0).GetChild(0).GetChild(1).GetChild(1).gameObject.SetActive(false);
+            character.transform.parent.GetChild(1).GetChild(0).GetChild(0).GetChild(2).GetChild(0).GetChild(0).GetChild(1).GetChild(2).gameObject.SetActive(false);
+
+        }
         materialAssigner[0] = SkinList[index];
         skinnedRenderer.materials = materialAssigner;
         characterText.text = SkinList[index].name;
@@ -50,6 +64,18 @@ public class AvatarCreation : MonoBehaviour {
             index =  SkinList.Length - 1;
         } else {
             index -= 1;
+        }
+        string name = SkinList[index].name;
+        if ("casualFemaleB" == name) {
+            character.transform.parent.GetChild(1).GetChild(0).GetChild(0).GetChild(2).GetChild(0).GetChild(0).GetChild(1).GetChild(2).gameObject.SetActive(true);
+            character.transform.parent.GetChild(1).GetChild(0).GetChild(0).GetChild(2).GetChild(0).GetChild(0).GetChild(1).GetChild(1).gameObject.SetActive(false);
+        } else if ("casualFemaleA" == name) {
+            character.transform.parent.GetChild(1).GetChild(0).GetChild(0).GetChild(2).GetChild(0).GetChild(0).GetChild(1).GetChild(1).gameObject.SetActive(true);
+            character.transform.parent.GetChild(1).GetChild(0).GetChild(0).GetChild(2).GetChild(0).GetChild(0).GetChild(1).GetChild(2).gameObject.SetActive(false);
+        } else {
+            character.transform.parent.GetChild(1).GetChild(0).GetChild(0).GetChild(2).GetChild(0).GetChild(0).GetChild(1).GetChild(1).gameObject.SetActive(false);
+            character.transform.parent.GetChild(1).GetChild(0).GetChild(0).GetChild(2).GetChild(0).GetChild(0).GetChild(1).GetChild(2).gameObject.SetActive(false);
+
         }
         transform.rotation = Quaternion.Euler(0, -90, 0);
         materialAssigner[0] = SkinList[index];

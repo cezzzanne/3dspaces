@@ -20,7 +20,7 @@ namespace Spaces {
 
         private bool otherPlayer = false;
 
-        GameObject mainCam;
+        public GameObject mainCam;
 
 
         CharacterController characterController;
@@ -56,7 +56,9 @@ namespace Spaces {
         private bool wardrobeOpen = false;
         MapPlayerScript mapPlayerScript;
 
-        private string username, roomID, myRoomID;
+        private string username, roomID, myRoomID, accessories;
+
+        public List<GameObject> previousAccesories;
         public Quaternion TargetRotation() {
             return transform.rotation;
         }
@@ -72,6 +74,7 @@ namespace Spaces {
                 GameObject itemControllerObject = GameObject.FindGameObjectWithTag("ItemPlacementController") as GameObject;
                 PV = transform.GetComponent<PhotonView>();
                 username = PlayerPrefs.GetString("username");
+                SetCharacterAccessories();
                 PV.RPC("RPC_ChangeCharacterName", RpcTarget.AllBuffered, username, PV.ViewID);
                 itemLoader = GameObject.FindGameObjectWithTag("ItemLoader");
                 if (inPublicRoom == 1) {
@@ -85,12 +88,101 @@ namespace Spaces {
                         GameObject itemController = GameObject.FindGameObjectWithTag("ItemPlacementController");
                         itemController.GetComponent<ItemPlacementController>().SetTarget(transform);
                         itemLoader.GetComponent<ItemLoader>().SetCamera(mainCam.GetComponent<PlayerFollow>());
-                        GameObject.FindGameObjectWithTag("CharacterChange").GetComponent<CharacterChange>().SetTargetCharacter(this);
+                        CharacterChange charChange = GameObject.FindGameObjectWithTag("CharacterChange").GetComponent<CharacterChange>();
+                        charChange.SetTargetCharacter(this);
+                        charChange.UpdateAccessories(accessories);
                         GameObject notificationManager = GameObject.FindGameObjectWithTag("NotificationManager");
                         notificationManager.GetComponent<InnerNotifManagerScript>().SetCharacterTarget(transform, username, myRoomID);
                     }
                 }
             }
+        }
+
+        void SetCharacterAccessories() {
+            accessories = PlayerPrefs.GetString("Accessories");
+            previousAccesories = new List<GameObject>();
+            if (!accessories.Contains("$")) {
+                if (accessories != "") {
+                    // one accessory
+                    string[] accessoryAttribute = accessories.Split('-');
+                    string location = accessoryAttribute[3];
+                    string bodyLocation = accessoryAttribute[0];
+                    GameObject acc = Resources.Load<GameObject>("Characters/Accessories/" + location);
+                    acc = Instantiate(acc);
+                    previousAccesories.Add(acc);
+                    Transform parent = transform.Find(bodyLocation);
+                    AllocateAccessory(acc.transform, parent);
+                } else {
+                    // no accessories
+                    return;
+                }
+            } else {
+                // multiple accessories
+                string[] allAccessories = accessories.Split('$');
+                foreach(string accessory in allAccessories) {
+                    string[] accessoryAttribute = accessory.Split('-');
+                    string location = accessoryAttribute[3];
+                    string bodyLocation = accessoryAttribute[0];
+                    GameObject acc = Resources.Load<GameObject>("Characters/Accessories/" + location);
+                    acc = Instantiate(acc);
+                    previousAccesories.Add(acc);
+                    Transform parent = transform.Find(bodyLocation);
+                    AllocateAccessory(acc.transform, parent);
+                }
+            }
+            // TODO: -> missing background to current browse,  SEND PRVC BUFFER OR WHATEVER TO UPDATE ACCESSORIES TO ALL ELSE, make it prettier
+        }
+
+        public void UpdateCharacterAccessories(string newAccessories) {
+            DestroyPreviousAccessories();
+            if (!newAccessories.Contains("$")) {
+                if (newAccessories != "") {
+                    // one accessory
+                    // 0 is the Roots/... -- 1 is the Name -- 2 is the Type (Cap) -- 3 is the GameObject name (astroBackpack)
+                    string[] accessoryAttribute = newAccessories.Split('-');
+                    string location = accessoryAttribute[3];
+                    string bodyLocation = accessoryAttribute[0];
+                    GameObject acc = Resources.Load<GameObject>("Characters/Accessories/" + location);
+                    acc = Instantiate(acc);
+                    previousAccesories.Add(acc);
+                    Transform parent = transform.Find(bodyLocation);
+                    AllocateAccessory(acc.transform, parent);
+                } else {
+                    return;
+                }
+            } else {
+                string[] allAccessories = newAccessories.Split('$');
+                foreach(string accessory in allAccessories) {
+                    string[] accessoryAttribute = accessory.Split('-');
+                    string location = accessoryAttribute[3];
+                    string bodyLocation = accessoryAttribute[0];
+                    GameObject acc = Resources.Load<GameObject>("Characters/Accessories/" + location);
+                    acc = Instantiate(acc);
+                    previousAccesories.Add(acc);
+                    Transform parent = transform.Find(bodyLocation);
+                    AllocateAccessory(acc.transform, parent);
+                }
+            }
+        }
+
+        void DestroyPreviousAccessories() {
+            foreach(GameObject accessory in previousAccesories) {
+                RemoveAccessory(accessory);
+            }
+        }
+
+        public void RemoveAccessory(GameObject accessory) {
+            Destroy(accessory);
+        }
+
+        public void AllocateAccessory(Transform child, Transform parent) {
+            Vector3 pos = child.position;
+            Quaternion rot = child.rotation;
+            Vector3 scale = child.localScale;
+            child.parent = parent;
+            child.localPosition = pos;
+            child.localRotation = rot;
+            child.localScale = scale;
         }
 
         public void SendNewMessage(string message) {

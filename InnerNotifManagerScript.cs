@@ -20,7 +20,30 @@ namespace Spaces {
         private string username, roomID;
         private int coins;
         private string lastRequest, consecutiveDays = "";
-        // Start is called before the first frame update
+
+
+        // ONLY FOR TESTING PURPOSES
+        public GameObject hat;
+
+        public void ToggleHat() {
+            hat = Instantiate(hat);
+            Transform parent = character.Find("Root/HipsCtrl/Hips/Spine/Chest/UpperChest"); //character.GetChild(1).GetChild(0).GetChild(0).GetChild(2).GetChild(0).GetChild(0).GetChild(1).GetChild(0).GetChild(0);
+            Debug.Log("zzz parent : " + parent);
+            NewSetParent(hat.transform, parent);
+        }
+
+        public void NewSetParent(Transform child, Transform parent) {
+            Vector3 pos = child.position;
+            Quaternion rot = child.rotation;
+            Vector3 scale = child.localScale;
+            child.parent = parent;
+            child.localPosition = pos;
+            child.localRotation = rot;
+            child.localScale = scale;
+        }
+
+        // END TESTING
+
         void Start() {
             FirebaseApp.DefaultInstance.SetEditorDatabaseUrl("https://spaces-d9a3c.firebaseio.com/");
             goldCoin = Instantiate(GoldCoinPrefab);

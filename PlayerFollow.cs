@@ -28,6 +28,10 @@ namespace Spaces {
 
         private bool isPlacingItem = false;
 
+        private int cameraDistance = 4;
+
+        private Vector3 prevPos;
+
 
         public void SetCameraTarget(Transform t, int inPublicRoom) {
             target = t;
@@ -53,23 +57,25 @@ namespace Spaces {
             //     if (touch.phase == TouchPhase.Moved) {
             //         float deltaX = touch.deltaPosition.x;
             //         float deltaY = touch.deltaPosition.y;
-            //         transform.RotateAround(target.position, new Vector3(deltaX, deltaY, 0), Time.deltaTime * 5);
+            //         transform.RotateAround(target.position, new Vector3(deltaX, deltaY, 0), Time.deltaTime * 55);
+            //         rotating = true;
             //     }
+            // } else {
+            //     rotating = false;
             // }
-
             // float rotX = Input.GetAxis("Vertical");
             // float rotY = Input.GetAxis("Horizontal");
             // if (rotX != 0 || rotY != 0) {
             //     transform.RotateAround(target.position, new Vector3(rotX, rotY, 0), 85 * Time.deltaTime);
+            //     transform.LookAt(target);
             //     rotating = true;
             // } else {
             //     rotating = false;
             // }
-
         }
 
         private void LateUpdate() {
-           if (target && !selectingItem) {
+           if (target && !selectingItem && !rotating) {
                if (isPlacingItem) {
                    FitCamera();
                     LookAtTarget();
@@ -125,9 +131,12 @@ namespace Spaces {
             isPlacingItem = placingItem;
         }
 
+        public void SetCameraDistance(int zoomIn) {
+            cameraDistance += zoomIn;
+        }
+
         void FitCamera() {
             Bounds itemBounds = target.GetComponent<BoxCollider>().bounds;
-            float cameraDistance = 4.0f; // Constant factor
             Vector3 objectSizes = itemBounds.max - itemBounds.min;
             float objectSize = Mathf.Max(objectSizes.x, objectSizes.y, objectSizes.z);
             float cameraView = 2.0f * Mathf.Tan(0.5f * Mathf.Deg2Rad * transform.GetComponent<Camera>().fieldOfView); // Visible height 1 meter in front

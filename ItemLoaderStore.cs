@@ -179,8 +179,9 @@ namespace Spaces {
                 distance += 0.5f * objectSize; // Estimated offset from the center to the outside of the object
                 mainCam.gameObject.transform.position = currentItem.transform.position - distance * mainCam.transform.forward; //itemBounds.center - distance * mainCam.transform.forward;
             }
-            objectTitle.transform.GetChild(0).GetComponent<TMPro.TextMeshProUGUI>().text = storeData.data[currIndex].name;
-            price.transform.GetChild(0).GetComponent<Text>().text = "$" + storeData.data[currIndex].price;
+            StoreItem temp = storeData.data[currIndex];
+            objectTitle.transform.GetChild(0).GetComponent<TMPro.TextMeshProUGUI>().text = (temp.type == "accessory") ? temp.name.Split('-')[1] : temp.name;
+            price.transform.GetChild(0).GetComponent<Text>().text = "$" + temp.price;
         }
 
         public void NextItem() {
@@ -210,7 +211,7 @@ namespace Spaces {
                 characterModel.GetComponent<SkinnedMeshRenderer>().material = material;
                 characterModel.transform.parent.gameObject.SetActive(true);
                 currentObjectType = 0;
-            } else if (item.type == "object") {
+            } else if (item.type == "object" || item.type == "accessory") {
                 GameObject currentAsset = Resources.Load<GameObject>("StoreItems/" + item.location) as GameObject;
                 GameObject instPrefab = Instantiate(currentAsset);
                 instPrefab.transform.SetParent(ObjectHolder);
@@ -223,7 +224,16 @@ namespace Spaces {
                 currentItem = instPrefab;
                 currentObjectType = 1;
             } else {
-                Debug.Log("supposed to be world");
+                GameObject currentAsset = Resources.Load<GameObject>("Worlds/" + item.location) as GameObject;
+                GameObject instPrefab = Instantiate(currentAsset);
+                instPrefab.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
+                instPrefab.transform.SetParent(ObjectHolder);
+                instPrefab.transform.localPosition = new Vector3(-0.4f, 1f, 0);
+                float width = instPrefab.GetComponent<BoxCollider>().size.x * Screen.width/ Screen.height; // basically height * screen aspect ratio
+                instPrefab.transform.Rotate(new Vector3(-20, 0, 0), Space.Self);
+                instPrefab.SetActive(true);
+                currentItem = instPrefab;
+                currentObjectType = 2;
             }
             FitCamera();
         }
@@ -245,7 +255,11 @@ namespace Spaces {
 
         public void ConfirmItem() {
             LoadingPurchase.SetActive(true);
-            StartCoroutine(PurchaseItem(storeData.data[currIndex]));
+            if (currentObjectType == 2) {
+                StartCoroutine(PurchaseWorld(storeData.data[currIndex]));
+            } else {
+                StartCoroutine(PurchaseItem(storeData.data[currIndex]));
+            }
         }
 
         public IEnumerator PurchaseItem(StoreItem currentItem) {
@@ -282,6 +296,45 @@ namespace Spaces {
                 }
             }
         }
+        public IEnumerator PurchaseWorld(StoreItem currentItem) {
+            WWWForm form = new WWWForm();
+            form.AddField("userID", roomID);
+            string worldName = currentItem.location.Split('-')[0];
+            form.AddField("name", currentItem.name);
+            form.AddField("location", currentItem.location);
+            form.AddField("price", currentItem.price.ToString());
+            form.AddField("type", currentItem.type);
+            form.AddField("worldType", worldName);
+            UnityWebRequest www = UnityWebRequest.Post("https://circles-parellano.herokuapp.com/api/purchase-world", form);
+            yield return www.SendWebRequest();
+            if(www.isNetworkError || www.isHttpError) {
+                Debug.Log(www.error);
+            }
+            else {
+                string response = www.downloadHandler.text;
+                yield return response;
+                PurchaseResponse resp = JsonUtility.FromJson<PurchaseResponse>(response);
+                if (resp.success == "true") {
+                    PlayerPrefs.SetString("currentRoomID", roomID);
+                    PlayerPrefs.SetString("currentWorldType", worldName);
+                    PlayerPrefs.SetString("myWorldType", worldName);
+                    LoadingPurchase.transform.GetChild(0).GetComponent<TMPro.TextMeshProUGUI>().text = "congratulations! purchase completed!";
+                    yield return new WaitForSeconds(4);
+                    coinsValue -= int.Parse(currentItem.price);
+                    coins.transform.GetChild(0).GetComponent<TMPro.TextMeshProUGUI>().text = "$" + coinsValue.ToString();
+                    DeductFirebaseCoins(coinsValue);
+                    storeData.data.RemoveAt(currIndex);
+                    NextItem();
+                    LoadingPurchase.SetActive(false);
+                    LoadingPurchase.transform.GetChild(0).GetComponent<TMPro.TextMeshProUGUI>().text = "completing purchase...";
+                } else {
+                    LoadingPurchase.transform.GetChild(0).GetComponent<TMPro.TextMeshProUGUI>().text = "oops! something went wrong. try again";
+                    yield return new WaitForSeconds(4);
+                    LoadingPurchase.SetActive(false);
+                    
+                }
+            }
+        }
 
         void DeductFirebaseCoins(int coinsValue) {
             DatabaseReference reference = FirebaseDatabase.DefaultInstance.RootReference;
@@ -294,7 +347,7 @@ namespace Spaces {
 
         public void CancelEditing() {
             inEditing = false;
-            if (currentObjectType == 1 ){
+            if (currentObjectType == 1 || currentObjectType == 2 ){
                 Destroy(currentItem);
             }
             ToggleUI();

@@ -116,7 +116,6 @@ namespace Spaces {
 
         void Start() {
             LoadingScreen.SetActive(true);
-            PlayerPrefs.SetString("currentWorldType", "MainGame");
             currentWorldType = PlayerPrefs.GetString("currentWorldType");
             roomIDToJoin = PlayerPrefs.GetString("currentRoomID");
             myUsername = PlayerPrefs.GetString("username");
@@ -245,7 +244,6 @@ namespace Spaces {
                 // ItemController.GetComponent<ItemPlacementController>().SetTerrain(currentTerrain);
                 currentPrebuiltTerrain = Instantiate(prebuiltTerrain);
             }
-
             if (myRoomID == roomIDToJoin) {
                 CurrentRoomUsername.SetActive(false);
                 LogToFirebase(myUsername.ToLower() + "'s World", 1);

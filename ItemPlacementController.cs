@@ -134,6 +134,10 @@ namespace Spaces {
             }
         }
 
+        public void SetCameraDistance(int zoomIn) {
+            target.GetComponent<CharacterScript>().mainCam.GetComponent<PlayerFollow>().SetCameraDistance(zoomIn);
+        }
+
         public void SetSpeed() {
             if (speed == 1f) {
                 speed = 2f;
@@ -198,7 +202,7 @@ namespace Spaces {
             if (colliders.Length > 0) {
                 Collider collider = null;
                 for (int i = 0; i < colliders.Length; i++) {
-                    if (colliders[i].gameObject.name != "MainGame-Terrain(Clone)" && colliders[i].gameObject != currentPlaceableObject.gameObject) {
+                    if (colliders[i].gameObject.name != "MainGame-Terrain(Clone)" && colliders[i].gameObject.name != "RacingWorld-Terrain(Clone)" && colliders[i].gameObject != currentPlaceableObject.gameObject) {
                         contactWithCollider = true;
                         if (collider != null) {
                             Collider temp = colliders[i];
@@ -279,7 +283,6 @@ namespace Spaces {
         }
 
         public void SetTerrain(GameObject ter) {
-            Debug.Log("zzzz");
             terrain = ter;
         }
 

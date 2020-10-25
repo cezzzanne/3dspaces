@@ -314,9 +314,34 @@ namespace Spaces {
                     newButton.transform.SetParent(panel.transform);     
                     newButton.transform.localScale = new Vector3(1, 1, 1);  
                     uiManagerScript.ResultGroupJoin(true);
+                    foreach(GroupMember member in group.members) {
+                        if (username != member.world_user.user.username) {
+                            SendNotificationAndCoins(member.world_user.user.username);
+                        }
+                    }
                 }
                 yield return response;
             }
+        }
+
+        public void SendNotificationAndCoins(string friendUsername) {
+            DatabaseReference reference = FirebaseDatabase.DefaultInstance.RootReference;
+            reference.Child("usernameList").Child(friendUsername).GetValueAsync().ContinueWith(task => {
+                DataSnapshot snapshot = task.Result;
+                Dictionary<string, object> notification = new Dictionary<string, object>();
+                notification["headings"] = new Dictionary<string, string>() { {"en", "🚨🚨 We have a new member in your group 🚨🚨" } };
+                notification["contents"] = new Dictionary<string, string>() { {"en", "@" + username.ToLower() + " has joined your group! Come say hi 👋" } };
+                notification["include_player_ids"] = new List<string>() { snapshot.Value.ToString().Trim() };
+                OneSignal.PostNotification(notification);
+                reference.Child("users").Child(friendUsername).Child("coins").GetValueAsync().ContinueWith(task2 => {
+                    DataSnapshot snapshot2 = task2.Result;
+                    int totalCoins = int.Parse(snapshot2.Value.ToString()) + 30;
+                    Dictionary<string, object> coinsData = new Dictionary<string, object>() {
+                        {"coins", totalCoins},
+                    };
+                    reference.Child("users").Child(friendUsername).UpdateChildrenAsync(coinsData);
+                });
+            });
         }
 
         public void GoBackToGroups() {
