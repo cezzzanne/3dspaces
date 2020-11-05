@@ -70,6 +70,8 @@ public class SignUpManager : MonoBehaviour {
         if (currentInput == 0) {
             StartCoroutine(VerifyUsername());
             CheckUsername();
+            nextButton.SetActive(false);
+            loadingIndicator.transform.parent.gameObject.SetActive(true);
             errorDisplay.SetActive(false);
             loading = true;
         } else if (currentInput == 1) {
@@ -80,6 +82,8 @@ public class SignUpManager : MonoBehaviour {
             Debug.Log(email);
             Debug.Log(password);
             loading = true;
+            nextButton.SetActive(false);
+            loadingIndicator.transform.parent.gameObject.SetActive(true);
             StartCoroutine(MakeRequest("create-account", username.ToLower(), password, NextSceneCallBack, errorDisplay));
 
         }
@@ -118,6 +122,8 @@ public class SignUpManager : MonoBehaviour {
             currentInput = 1;
         }
         loading = false;
+        nextButton.SetActive(true);
+        loadingIndicator.transform.parent.gameObject.SetActive(false);
     }
 
 
@@ -132,6 +138,8 @@ public class SignUpManager : MonoBehaviour {
 
     public void NextSceneCallBack() {
         loading = false;
+        nextButton.SetActive(true);
+        loadingIndicator.transform.parent.gameObject.SetActive(false);
         prevAvatarButton.SetActive(true);
         nextAvatarButton.SetActive(true);
         background.SetActive(false);
@@ -193,6 +201,7 @@ public class SignUpManager : MonoBehaviour {
                 PlayerPrefs.SetString("currentWorldType", "MainGame");
                 PlayerPrefs.SetString("currentRoomID", data.userID);
                 PlayerPrefs.SetString("username", username.ToLower());
+                PlayerPrefs.SetString("accessories", "");
                 callback();
             }
         

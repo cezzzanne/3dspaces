@@ -32,11 +32,14 @@ namespace Spaces {
 
         private int purchasedItemsIndex = 0;
 
+
         private GameObject currentItem;
 
         public GameObject CharacterChange;
 
         private CharacterChange CharacterChangeScript;
+
+        public GameObject itemName;
 
         void Start() {
             ObjectHolder = transform.GetChild(0);
@@ -70,7 +73,6 @@ namespace Spaces {
         public IEnumerator LoadPurchasedItems(string roomID) {
             if (storeDataObjects == null) {
                 WWWForm form = new WWWForm();
-                Debug.Log("GOING INTO REQUEST");
                 form.AddField("userID", roomID);
                 form.AddField("storeType", 0);
                 UnityWebRequest www = UnityWebRequest.Post("https://circles-parellano.herokuapp.com/api/get-purchased-items", form);
@@ -104,11 +106,12 @@ namespace Spaces {
         instPrefab.transform.SetParent(ObjectHolder);
         instPrefab.transform.localPosition = new Vector3(0, 0, 0);
         float width = instPrefab.GetComponent<BoxCollider>().size.x * Screen.width/ Screen.height; // basically height * screen aspect ratio
-        instPrefab.transform.localScale = Vector3.one * width / 4f;
-        instPrefab.transform.localScale = instPrefab.transform.localScale * (1f / instPrefab.GetComponent<BoxCollider>().size.x);
+        // instPrefab.transform.localScale = Vector3.one * width / 4f;
+        // instPrefab.transform.localScale = instPrefab.transform.localScale * (1f / instPrefab.GetComponent<BoxCollider>().size.x);
         instPrefab.transform.Rotate(new Vector3(-20, 0, 0), Space.Self);
         instPrefab.SetActive(true);
         currentItem = instPrefab;
+        itemName.GetComponent<TMPro.TextMeshProUGUI>().text = storeDataObjects[purchasedItemsIndex].name;
         FitCamera();
     }
 
@@ -173,15 +176,13 @@ namespace Spaces {
             }
             prefabList[currIndex].SetActive(true);
             currentItem = prefabList[currIndex];
-            // objectTitle.GetComponent<Text>().text = itemNames[currIndex];
             FitCamera();
         }
 
         void FitCamera() {
-            // objectTitle.GetComponent<Text>().text = itemNames[currIndex];
             transform.rotation = Quaternion.Euler(0, 0, 0);
             Bounds itemBounds = currentItem.GetComponent<BoxCollider>().bounds;
-            float cameraDistance = 4.0f; // Constant factor
+            float cameraDistance = browsingPurchased ?  6.0f : 5f; // Constant factor
             Vector3 objectSizes = itemBounds.max - itemBounds.min;
             float objectSize = Mathf.Max(objectSizes.x, objectSizes.y, objectSizes.z);
             float cameraView = 2.0f * Mathf.Tan(0.5f * Mathf.Deg2Rad * mainCam.gameObject.GetComponent<Camera>().fieldOfView); // Visible height 1 meter in front
@@ -217,6 +218,7 @@ namespace Spaces {
                 prefabList[newIndex].SetActive(true);
                 currIndex = newIndex;
                 currentItem = prefabList[currIndex];
+                itemName.GetComponent<TMPro.TextMeshProUGUI>().text = itemNames[currIndex].Replace("-", " ");
                 FitCamera();
             }
         }
@@ -244,6 +246,7 @@ namespace Spaces {
                 prefabList[newIndex].SetActive(true);
                 currIndex = newIndex;
                 currentItem = prefabList[currIndex];
+                itemName.GetComponent<TMPro.TextMeshProUGUI>().text = itemNames[currIndex].Replace("-", " ");
                 FitCamera();
             }
         }

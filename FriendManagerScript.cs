@@ -6,6 +6,7 @@ using UnityEngine.Networking;
 using Firebase;
 using Firebase.Unity.Editor;
 using Firebase.Database;
+using SA.iOS.Contacts;
 
 namespace Spaces {
 
@@ -56,6 +57,11 @@ namespace Spaces {
     [System.Serializable]
     public  struct GroupMember {
         public FriendJson world_user;
+    }
+
+    [System.Serializable]
+    public  struct FriendsPhones {
+        public List<string> numbers;
     }
 
 
@@ -110,8 +116,8 @@ namespace Spaces {
         public GameObject OpenGroupPanel;
 
         public GameObject InviteFriendInputField;
-
         private string currentGroupCode = "";
+        public GameObject InviteFriendGroupCodeText;
 
         void Start() {
             username = PlayerPrefs.GetString("username");
@@ -122,7 +128,11 @@ namespace Spaces {
             StartCoroutine(GetGroups("https://circles-parellano.herokuapp.com/api/get-world-groups", GroupButtonPrefab, GroupCallback, FriendListContent));
             uiManagerScript = UIManager.GetComponent<UIManagerScript>();
             itemLoader = itemLoaderGO.GetComponent<ItemLoader>();
-            // SetUpRequests();
+        }
+
+        void GetContact(string name, string number, string email) {
+            Debug.Log("Zzzz the number is " + number);
+            InviteFriendInputField.transform.parent.GetComponent<InputField>().text = number;
         }
 
         IEnumerator GetGroups(string url, GameObject buttonPrefab, GroupButtonCallback callback, GameObject panel) {
@@ -148,25 +158,6 @@ namespace Spaces {
                 yield return response;
             }
         }
-
-        IEnumerator SendInvite(string number) {
-            WWWForm form = new WWWForm();
-            form.AddField("userID", roomID);
-            form.AddField("number", number);
-            form.AddField("code", currentGroupCode);
-            UnityWebRequest www = UnityWebRequest.Post("https://circles-parellano.herokuapp.com/api/invite-friend", form);
-            yield return www.SendWebRequest();
-            if(www.isNetworkError || www.isHttpError) {
-                Debug.Log(www.error);
-                uiManagerScript.ResultFriendInvite(false);
-            } else {
-                string response = www.downloadHandler.text;
-                Debug.Log("zz response : " + response);
-                uiManagerScript.ResultFriendInvite(true);
-                yield return response;
-            }
-        }
-
 
         void TogglePanel(bool setOpen) {
             if (setOpen) {
@@ -199,7 +190,9 @@ namespace Spaces {
                 AddFriendButton.SetActive(true);
                 return;
             }
-            StartCoroutine(SendGroupRequest(text, FriendListContent, GroupButtonPrefab, GroupCallback));
+            FriendsPhones friendsPhones = new FriendsPhones(){numbers = new List<string>()};
+            uiManagerScript.LoadingGroupCreation();
+            StartCoroutine(SendGroupRequest(text, false, friendsPhones, ()=> {uiManagerScript.ResultGroupCreation(true);}, ()=> {uiManagerScript.ResultGroupCreation(false);} ));
         }
 
         public void JoinGroup() {
@@ -212,16 +205,56 @@ namespace Spaces {
             StartCoroutine(JoinGroupRequest(code, FriendListContent, GroupButtonPrefab, GroupCallback));
         }
 
-        // refactor all this code
         public void InviteFriend() {
-            string number = InviteFriendInputField.GetComponent<Text>().text;
-            if (number.Trim() == "") {
-                uiManagerScript.HideInviteFriendForm();
-                return;
+            var status = ISN_CNContactStore.GetAuthorizationStatus(ISN_CNEntityType.Contacts);
+            if(status == ISN_CNAuthorizationStatus.Authorized) {
+                AddContacts();
+            } else {
+                ISN_CNContactStore.RequestAccess(ISN_CNEntityType.Contacts, (result) => {
+                    if (result.IsSucceeded) {
+                        AddContacts();
+                    } else {
+                        uiManagerScript.ResultFriendInvite(false, "Contact permission denied. You can go to settings and give spaces access to your contacts so you can send them invitations!");
+                    }
+                });
             }
-            uiManagerScript.LoadingInviteFriend();
-            StartCoroutine(SendInvite(number));
         }
+
+        public void AddContacts() {
+            FriendsPhones friendsPhones = new FriendsPhones(){numbers = new List<string>()};
+            ISN_CNContactStore.ShowContactsPickerUI((result) => {
+                uiManagerScript.LoadingInviteFriend();
+                if (result.IsSucceeded) {
+                    foreach (var contact in result.Contacts) {
+                        if (contact.Phones.Count > 0) {
+                            string fullNumber = contact.Phones[0].FullNumber;
+                            friendsPhones.numbers.Add(fullNumber);
+                        }
+                    }
+                    StartCoroutine(SendInvites(friendsPhones));
+                } else {
+                    uiManagerScript.ResultFriendInvite(false, "Hmmmm... Server error, try again!");
+                }
+            });
+        }
+
+        IEnumerator SendInvites(FriendsPhones numbers) {
+            WWWForm form = new WWWForm();
+            form.AddField("userID", roomID);
+            form.AddField("numbers", JsonUtility.ToJson(numbers));
+            form.AddField("code", currentGroupCode);
+            UnityWebRequest www = UnityWebRequest.Post("https://circles-parellano.herokuapp.com/api/invite-friends", form);
+            yield return www.SendWebRequest();
+            if(www.isNetworkError || www.isHttpError) {
+                Debug.Log(www.error);
+                uiManagerScript.ResultFriendInvite(false, "Hmmmm... Server error, try again!");
+            } else {
+                string response = www.downloadHandler.text;
+                uiManagerScript.ResultFriendInvite(true, "nn");
+                yield return response;
+            }
+        }
+
 
         public delegate void GroupButtonCallback(string groupName, string code, GroupData members);
         public delegate void FriendButtonClickCallback(string id, string username, string worldType);
@@ -229,6 +262,7 @@ namespace Spaces {
         public void GroupCallback(string groupName, string code, GroupData group) {
             uiManagerScript.OpenGroup();
             currentGroupCode = code;
+            InviteFriendGroupCodeText.GetComponent<TMPro.TextMeshProUGUI>().text = "group code: " + code;
             foreach(GroupMember member in group.members) {
                 if (username != member.world_user.user.username) {
                     GameObject newButton = Instantiate(GroupFriendButton) as GameObject;
@@ -267,26 +301,26 @@ namespace Spaces {
         }
 
 
-        IEnumerator SendGroupRequest(string groupName, GameObject panel, GameObject buttonPrefab, GroupButtonCallback callback) {
+        public IEnumerator SendGroupRequest(string groupName, bool withPhoneNumbers, FriendsPhones numbers, System.Action callbackSuccess, System.Action callbackFailure) {
             WWWForm form = new WWWForm();
             form.AddField("userID", roomID);
             form.AddField("name", groupName);
-            uiManagerScript.LoadingGroupCreation();
+            form.AddField("numbers", JsonUtility.ToJson(numbers));
             UnityWebRequest www = UnityWebRequest.Post("https://circles-parellano.herokuapp.com/api/create-group-world", form);
             yield return www.SendWebRequest();
             if(www.isNetworkError || www.isHttpError) {
                 Debug.Log(www.error);
-                uiManagerScript.ResultGroupCreation(false);
+                callbackFailure();
             } else {
                 string response = www.downloadHandler.text;
                 GroupData group = JsonUtility.FromJson<GroupData>(response);
-                GameObject newButton = Instantiate(buttonPrefab) as GameObject;
+                GameObject newButton = Instantiate(GroupButtonPrefab) as GameObject;
                 newButton.transform.GetChild(1).GetChild(1).GetComponent<TMPro.TextMeshProUGUI>().text = group.name;
-                newButton.GetComponent<Button>().onClick.AddListener(()=> {callback(group.name, group.code, group);});
-                newButton.transform.SetParent(panel.transform);     
+                newButton.GetComponent<Button>().onClick.AddListener(()=> {GroupCallback(group.name, group.code, group);});
+                newButton.transform.SetParent(FriendListContent.transform);     
                 newButton.transform.localScale = new Vector3(1, 1, 1);  
-                uiManagerScript.ResultGroupCreation(true);
-                yield return response;
+                callbackSuccess();
+                yield return null;
             }
         }
 

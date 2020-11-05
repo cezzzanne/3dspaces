@@ -88,6 +88,6 @@ public class AvatarCreation : MonoBehaviour {
     }
 
     void Update() {
-        transform.RotateAround(transform.position, new Vector3(0 ,1, 0), 0.2f);
+        transform.RotateAround(transform.position, new Vector3(0 ,1, 0), 1.2f);
     }
 }

@@ -22,7 +22,7 @@ namespace Spaces {
 
         private bool mapIsToggled;
 
-        public GameObject confirmItemB, nextItemB, prevItemB, placeItemB, clearItemB, quitSelectorB, rotateB;
+        public GameObject confirmItemB, nextItemB, prevItemB, placeItemB, clearItemB, quitSelectorB, rotateB, ItemNameB;
 
         private bool isEditing = false;
         public GameObject joystick;
@@ -59,6 +59,15 @@ namespace Spaces {
 
         public GameObject AccessoryName, AccessoryNameShadow;
 
+        public Dictionary<string, GameObject> menuSelectors;
+
+        public GameObject ArmS, ShoulderS, HandsS, BackpackS, HolsterS, ExtraS, HariS, CapS;
+
+        public GameObject NoAccesoriesButton;
+
+        string specificType;
+
+        public GameObject RotateCharacterB;
 
         void Start() {
             inMyRoom = PlayerPrefs.GetString("currentRoomID") == PlayerPrefs.GetString("myRoomID");
@@ -67,6 +76,17 @@ namespace Spaces {
             {"Arm", ArmPanel},
             {"Torso", TorsoPanel},
             {"Face", FacePanel},
+            };
+            menuSelectors = new Dictionary<string, GameObject>() {
+                {"Arm", ArmS},
+                {"Shoulder", ShoulderS},
+                {"Hands", HandsS},
+                {"Backpack", BackpackS},
+                {"Holster", HolsterS},
+                {"Extra", ExtraS},
+                {"Hair", HariS},
+                {"Cap", CapS},
+                {"Skin", ArmS}
             };
         }
 
@@ -148,6 +168,7 @@ namespace Spaces {
             if (isEditing) {
                 OpenTabsToggle.SetActive(true);
                 confirmItemB.SetActive(false);
+                ItemNameB.SetActive(false);
                 rotateB.SetActive(false);
                 nextItemB.SetActive(false);
                 prevItemB.SetActive(false);
@@ -161,6 +182,7 @@ namespace Spaces {
                     SpreadTabs();
                 }
                 confirmItemB.SetActive(true);
+                ItemNameB.SetActive(true);
                 nextItemB.SetActive(true);
                 prevItemB.SetActive(true);
                 ToggleBrowsing(browsingPurchased);
@@ -183,6 +205,7 @@ namespace Spaces {
             ShadowPlace.SetActive(true);
             PlacePanel.SetActive(true);
             confirmItemB.SetActive(false);
+            ItemNameB.SetActive(false);
             nextItemB.SetActive(false);
             prevItemB.SetActive(false);
             quitSelectorB.SetActive(false);
@@ -219,6 +242,7 @@ namespace Spaces {
             ConfirmSkinB.SetActive(!changingCharacter);
             CancelSkinB.SetActive(!changingCharacter);
             MainMenuCharacterSelect.SetActive(!changingCharacter);
+            RotateCharacterB.SetActive(!changingCharacter);
             MainMenuCharacterBack.SetActive(!changingCharacter);
             PreviousSkinB.SetActive(false);
             NextSkinB.SetActive(false);
@@ -249,25 +273,23 @@ namespace Spaces {
             JoinGroupForm.SetActive(false);
         }
 
-        public void InviteFriend() {
-            InviteFriendB.SetActive(false);
-            InviteFriendForm.SetActive(true);
-        }
-
         public void HideInviteFriendForm() {
             InviteFriendB.SetActive(true);
             InviteFriendForm.SetActive(false);
         }
 
         public void LoadingInviteFriend() {
-            InviteFriendForm.SetActive(false);
+            InviteFriendB.SetActive(false);
             LoadingFriendInvite.SetActive(true);
         }
-        public void ResultFriendInvite(bool success) {
+
+        public void ResultFriendInvite(bool success, string message) {
+            InviteFriendB.SetActive(false);
             LoadingFriendInvite.SetActive(false);
             if (success) {
                 SuccessFriendInviteB.SetActive(true);
             } else {
+                ErrorFriendInviteB.transform.GetChild(1).GetChild(1).GetComponent<TMPro.TextMeshProUGUI>().text = message;
                 ErrorFriendInviteB.SetActive(true);
             }
             StartCoroutine(RevertInvite(success));
@@ -370,32 +392,40 @@ namespace Spaces {
             FacePanel.SetActive(false);
             MainMenuCharacterSelect.SetActive(true);
             MainMenuCharacterBack.SetActive(true);
+            RotateCharacterB.SetActive(true);
             BackToMainMenuCharacterSelect.SetActive(false);
             CancelSkinB.SetActive(true);
             ConfirmSkinB.SetActive(true);
             AccessoryName.SetActive(false);
             AccessoryNameShadow.SetActive(false);
+            NoAccesoriesButton.SetActive(false);
+            menuSelectors[specificType].SetActive(false);
         }
 
         public void BrowseTypeOfAccessory(string type) {
             AccessoryName.SetActive(true);
             AccessoryNameShadow.SetActive(true);
             string mainType = type.Split('-')[0];
-            string specificType = type.Split('-')[1];
+            specificType = type.Split('-')[1];
             BackToMainMenuCharacterSelect.SetActive(true);
-            MainMenuCharacterBack.SetActive(false);
             MainMenuCharacterSelect.SetActive(false);
             CancelSkinB.SetActive(false);
             ConfirmSkinB.SetActive(false);
             if (mainType != "Skin") {
                 CharacterPanels[mainType].SetActive(true);
+            } else {
                 AccessoryName.SetActive(false);
                 AccessoryNameShadow.SetActive(false);
+                MainMenuCharacterBack.SetActive(false);
             }
             BrowseSpecificAccessory(specificType);
         }
 
         public void BrowseSpecificAccessory(string type) {
+            menuSelectors[specificType].SetActive(false);
+            menuSelectors[type].SetActive(true);
+            NoAccesoriesButton.SetActive(false);
+            specificType = type;
             NextSkinB.SetActive(true);
             PreviousSkinB.SetActive(true);
             CharacterChange.GetComponent<CharacterChange>().SetBrowsingType(type);

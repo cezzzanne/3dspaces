@@ -59,11 +59,14 @@ namespace Spaces {
         private string username, roomID, myRoomID, accessories;
 
         public List<GameObject> previousAccesories;
+
+        public Dictionary<int, List<GameObject>> friendsPreviousAccessories;
         public Quaternion TargetRotation() {
             return transform.rotation;
         }
         void Awake() {
             inPublicRoom = PlayerPrefs.GetInt("isInPublicWorld");
+            friendsPreviousAccessories = new Dictionary<int, List<GameObject>>();
             if (!photonView.IsMine) {
                 otherPlayer = true;
             } else {
@@ -74,8 +77,12 @@ namespace Spaces {
                 GameObject itemControllerObject = GameObject.FindGameObjectWithTag("ItemPlacementController") as GameObject;
                 PV = transform.GetComponent<PhotonView>();
                 username = PlayerPrefs.GetString("username");
-                SetCharacterAccessories();
+                accessories = PlayerPrefs.GetString("Accessories");
+                string tats = PlayerPrefs.GetString("Asdfad");
+                previousAccesories = new List<GameObject>();
+                // SetCharacterAccessories(accessories, previousAccesories, transform);
                 PV.RPC("RPC_ChangeCharacterName", RpcTarget.AllBuffered, username, PV.ViewID);
+                PV.RPC("RPC_SetCharacterAccessories", RpcTarget.AllBuffered, accessories, PV.ViewID);
                 itemLoader = GameObject.FindGameObjectWithTag("ItemLoader");
                 if (inPublicRoom == 1) {
                     GameObject.FindGameObjectWithTag("Canvas").GetComponent<InputHandler>().SetTarget(this);
@@ -98,9 +105,9 @@ namespace Spaces {
             }
         }
 
-        void SetCharacterAccessories() {
-            accessories = PlayerPrefs.GetString("Accessories");
-            previousAccesories = new List<GameObject>();
+        void SetCharacterAccessories(string accss, List<GameObject> prevAccss, Transform character) {
+            string accessories = accss;
+            // using same names as local variables - ignore that
             if (!accessories.Contains("$")) {
                 if (accessories != "") {
                     // one accessory
@@ -109,8 +116,8 @@ namespace Spaces {
                     string bodyLocation = accessoryAttribute[0];
                     GameObject acc = Resources.Load<GameObject>("Characters/Accessories/" + location);
                     acc = Instantiate(acc);
-                    previousAccesories.Add(acc);
-                    Transform parent = transform.Find(bodyLocation);
+                    prevAccss.Add(acc);
+                    Transform parent = character.Find(bodyLocation);
                     AllocateAccessory(acc.transform, parent);
                 } else {
                     // no accessories
@@ -125,16 +132,20 @@ namespace Spaces {
                     string bodyLocation = accessoryAttribute[0];
                     GameObject acc = Resources.Load<GameObject>("Characters/Accessories/" + location);
                     acc = Instantiate(acc);
-                    previousAccesories.Add(acc);
-                    Transform parent = transform.Find(bodyLocation);
+                    prevAccss.Add(acc);
+                    Transform parent = character.Find(bodyLocation);
                     AllocateAccessory(acc.transform, parent);
                 }
             }
-            // TODO: -> missing background to current browse,  SEND PRVC BUFFER OR WHATEVER TO UPDATE ACCESSORIES TO ALL ELSE, make it prettier
+            // Move store to first tent
         }
 
-        public void UpdateCharacterAccessories(string newAccessories) {
-            DestroyPreviousAccessories();
+        public void UpdateMyAccessories(string newAccessories) {
+            PV.RPC("RPC_UpdateCharacterAccessories", RpcTarget.AllBuffered, newAccessories, PV.ViewID);
+        }
+
+        public void UpdateCharacterAccessories(string newAccessories, List<GameObject> prevAcc, Transform character) {
+            DestroyPreviousAccessories(prevAcc);
             if (!newAccessories.Contains("$")) {
                 if (newAccessories != "") {
                     // one accessory
@@ -144,8 +155,8 @@ namespace Spaces {
                     string bodyLocation = accessoryAttribute[0];
                     GameObject acc = Resources.Load<GameObject>("Characters/Accessories/" + location);
                     acc = Instantiate(acc);
-                    previousAccesories.Add(acc);
-                    Transform parent = transform.Find(bodyLocation);
+                    prevAcc.Add(acc);
+                    Transform parent = character.Find(bodyLocation);
                     AllocateAccessory(acc.transform, parent);
                 } else {
                     return;
@@ -158,15 +169,15 @@ namespace Spaces {
                     string bodyLocation = accessoryAttribute[0];
                     GameObject acc = Resources.Load<GameObject>("Characters/Accessories/" + location);
                     acc = Instantiate(acc);
-                    previousAccesories.Add(acc);
-                    Transform parent = transform.Find(bodyLocation);
+                    prevAcc.Add(acc);
+                    Transform parent = character.Find(bodyLocation);
                     AllocateAccessory(acc.transform, parent);
                 }
             }
         }
 
-        void DestroyPreviousAccessories() {
-            foreach(GameObject accessory in previousAccesories) {
+        void DestroyPreviousAccessories(List<GameObject> prevAccess) {
+            foreach(GameObject accessory in prevAccess) {
                 RemoveAccessory(accessory);
             }
         }
@@ -269,7 +280,12 @@ namespace Spaces {
               Vector3 pos;
               int publicWorld = PlayerPrefs.GetInt("isInPublicWorld");
               if (publicWorld == 1) {
-                  pos = new Vector3(447.5852f, 0, 335.4253f);
+                  GameObject moonWorld = GameObject.FindGameObjectWithTag("MoonWorld");
+                  if (moonWorld == null) {
+                    pos = new Vector3(447.5852f, 0, 335.4253f);
+                  } else {
+                    pos = new Vector3(2, 0, 4);
+                  }
               } else {
                 pos = new Vector3(2, 0, 2);
               }
@@ -330,13 +346,18 @@ namespace Spaces {
                 itemLoader.GetComponent<ItemLoaderStore>().ActivateStore(true);
             } else if (other.gameObject.name == "Wardrobe" && myRoom) {
                 itemLoader.GetComponent<ItemLoader>().ToggleWardrobe(true);
+            } else if (other.gameObject.name == "toggleCameraFloor") {
+                mainCam.GetComponent<PlayerFollow>().ZoomInPlayer();
             }
         }
 
 
+        // JUST LOAD APPROPRIATE ARTIFACTS FOR THIS WORLD TO SELL AND CHANGE THE ITEM TERRAIN TO A MOON-TYPE TERRAIN
+
+
+
         public void ChangeSkin(Material newMat) {
             transform.GetChild(0).GetComponent<SkinnedMeshRenderer>().material = newMat;
-            itemLoader.GetComponent<ItemLoader>().ToggleCharacterChange();
             PV.RPC("RPC_SkinChange", RpcTarget.AllBuffered, newMat.name, PV.ViewID);
         }
 
@@ -348,6 +369,8 @@ namespace Spaces {
                 itemLoader.GetComponent<ItemLoaderStore>().ActivateStore(false);
             } else if (other.gameObject.name == "Wardrobe" && myRoom) {
                 itemLoader.GetComponent<ItemLoader>().ToggleWardrobe(false);
+            } else if (other.gameObject.name == "toggleCameraFloor") {
+                mainCam.GetComponent<PlayerFollow>().ZoomOutPlayer();
             }
         }
 
@@ -376,7 +399,6 @@ namespace Spaces {
                 Destroy(nameCanvas);
                 return;
             }
-
             playerName.text = "@" + name;
         }
 
@@ -394,6 +416,21 @@ namespace Spaces {
         void RPC_SkinChange(string skinName, int pvID) {
             Material material = Resources.Load<Material>("Characters/Materials/" + skinName) as Material;
             PhotonView.Find(pvID).transform.GetChild(0).GetComponent<SkinnedMeshRenderer>().material = material;
+        }
+
+
+        [PunRPC]
+        void RPC_SetCharacterAccessories(string baseAcc, int pvID) {
+            string accessories = baseAcc;
+            List<GameObject> previousAccesories = new List<GameObject>();
+            friendsPreviousAccessories.Add(pvID, previousAccesories);
+            SetCharacterAccessories(baseAcc, previousAccesories, PhotonView.Find(pvID).transform);
+        }
+
+        [PunRPC]
+        public void RPC_UpdateCharacterAccessories(string newAccessories, int pvID) {
+            List<GameObject> prevAcc = friendsPreviousAccessories[pvID];
+            UpdateCharacterAccessories(newAccessories, prevAcc, PhotonView.Find(pvID).transform);
         }
     }
 }

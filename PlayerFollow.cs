@@ -121,6 +121,14 @@ namespace Spaces {
             // }
         }
 
+        public void ZoomInPlayer() {
+            offsetFromTarget = new Vector3(0, 2f, -3f);
+        }
+
+        public void ZoomOutPlayer() {
+            offsetFromTarget = new Vector3(0, 4.8f, -6.5f);
+        }
+
         void LookAtTarget() {
             float eulerYAngle = Mathf.SmoothDampAngle(transform.eulerAngles.y, target.eulerAngles.y, ref rotateVel, lookSmooth);
             transform.rotation = Quaternion.Euler(eulerX, eulerYAngle, 0);

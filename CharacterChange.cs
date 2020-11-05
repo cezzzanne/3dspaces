@@ -33,6 +33,11 @@ namespace Spaces {
         
         string playerPrefAccessories;
 
+        private bool alreadySetUpAccesories = false;
+
+        public GameObject noAccessoriesButton;
+
+
         void Start() {
             skins = new List<Material>();
             defaultItem = new StoreItem();
@@ -46,8 +51,8 @@ namespace Spaces {
                 {"Extra", new List<StoreItem>() {defaultItem}},
                 {"Hair", new List<StoreItem>() {defaultItem}},
                 {"Cap", new List<StoreItem>() {defaultItem}},
+                {"Skin", new List<StoreItem>() {defaultItem}}
             };
-            currentAccessories = new Dictionary<string, string>();
             characterSkin = PlayerPrefs.GetString("CurrentSkin");
             currentSkin = characterSkin;
             Material material = Resources.Load<Material>("Characters/Materials/" + characterSkin) as Material;
@@ -55,7 +60,21 @@ namespace Spaces {
             SetSkin();
         }
 
+      
+        void Update() {
+
+        }
+
+        public void RotateCharacter() {
+            character.transform.RotateAround(character.transform.position, new Vector3(0, 45f, 0), 15f);
+        }
+
         void SetUpAccessories() {
+            if (alreadySetUpAccesories) {
+                return;
+            }
+            alreadySetUpAccesories = true;
+            currentAccessories = new Dictionary<string, string>();
             string accessories = playerPrefAccessories;
             if (!accessories.Contains("$")) {
                 if (accessories != "") {
@@ -93,7 +112,11 @@ namespace Spaces {
         public void AddToCharacterObjects(bool isSkin, StoreItem item) {
             if (isSkin) {
                 Material material = Resources.Load<Material>(item.location) as Material;
-                skins.Add(material);
+                StoreItem placeholder = new StoreItem(); // this is so we don't have "empty" skins set and we get the message of empty closet
+                accessories["Skin"].Add(placeholder);
+                if (!skins.Contains(material)) { //  checking for my skin which is added at start ; there might be a bit of race-condition but still playerprefs
+                    skins.Add(material);            // should be faster than a call to server
+                }
             } else {
                 string accessoryType = item.name.Split('-')[2];
                 accessories[accessoryType].Add(item);
@@ -187,10 +210,15 @@ namespace Spaces {
                 string childLocation = location + "/" +  currentAccessories[type].Split('-')[3] + "(Clone)";
                 Transform item = character.transform.Find(childLocation);
                 currentAccessories.Remove(type);
-                Debug.Log("zzz child loc : " + childLocation);
                 RemoveAccessory(item.gameObject);
             }
+            if (accessories[currentBrowsingType].Count == 1) {
+                noAccessoriesButton.SetActive(true);
+            }
             index = 0;
+            if (type == "Skin") {
+                SetSkin();
+            }
             currentAccessoryName.GetComponent<TMPro.TextMeshProUGUI>().text = "No item";
         }
 
@@ -226,8 +254,9 @@ namespace Spaces {
             if (characterSkin != currentSkin) {
                 PlayerPrefs.SetString("CurrentSkin", skins[index].name);
                 characterScript.ChangeSkin(skins[index]);
+                characterSkin = currentSkin;
             }
-            characterScript.UpdateCharacterAccessories(fullAccessoryString);
+            characterScript.UpdateMyAccessories(fullAccessoryString);
         }
 
         public void RemoveAccessory(GameObject accessory) {

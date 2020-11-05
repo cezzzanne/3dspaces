@@ -82,7 +82,12 @@ namespace Spaces {
             Debug.Log("GOING INTO REQUEST");
             roomID = PlayerPrefs.GetString("myRoomID");
             form.AddField("userID", roomID);
-            form.AddField("storeType", 0);
+            GameObject MoonWorld = GameObject.FindGameObjectWithTag("MoonWorld");
+            int storeType = 1;
+            if (MoonWorld == null) {
+                storeType = 0;
+            }
+            form.AddField("storeType", storeType);
             UnityWebRequest www = UnityWebRequest.Post("https://circles-parellano.herokuapp.com/api/get-store", form);
             yield return www.SendWebRequest();
             if(www.isNetworkError || www.isHttpError) {
@@ -171,14 +176,14 @@ namespace Spaces {
             } else {
                 transform.rotation = Quaternion.Euler(0, 0, 0);
                 Bounds itemBounds = currentItem.GetComponent<BoxCollider>().bounds; //prefabList[currIndex].GetComponent<BoxCollider>().bounds;
-                float cameraDistance = 1.0f; // Constant factor
+                float cameraDistance = (currentObjectType == 1) ? 5.0f : 1f; // Constant factor
                 Vector3 objectSizes = itemBounds.max - itemBounds.min;
                 float objectSize = Mathf.Max(objectSizes.x, objectSizes.y, objectSizes.z);
                 float cameraView = 2.0f * Mathf.Tan(0.5f * Mathf.Deg2Rad * mainCam.gameObject.GetComponent<Camera>().fieldOfView); // Visible height 1 meter in front
                 float distance = cameraDistance * objectSize / cameraView; // Combined wanted distance from the object
                 distance += 0.5f * objectSize; // Estimated offset from the center to the outside of the object
                 mainCam.gameObject.transform.position = currentItem.transform.position - distance * mainCam.transform.forward; //itemBounds.center - distance * mainCam.transform.forward;
-            }
+            } 
             StoreItem temp = storeData.data[currIndex];
             objectTitle.transform.GetChild(0).GetComponent<TMPro.TextMeshProUGUI>().text = (temp.type == "accessory") ? temp.name.Split('-')[1] : temp.name;
             price.transform.GetChild(0).GetComponent<Text>().text = "$" + temp.price;
@@ -213,12 +218,14 @@ namespace Spaces {
                 currentObjectType = 0;
             } else if (item.type == "object" || item.type == "accessory") {
                 GameObject currentAsset = Resources.Load<GameObject>("StoreItems/" + item.location) as GameObject;
+                Vector3 prevScale = currentAsset.transform.localScale;
                 GameObject instPrefab = Instantiate(currentAsset);
                 instPrefab.transform.SetParent(ObjectHolder);
                 instPrefab.transform.localPosition = new Vector3(0, 0, 0);
                 float width = instPrefab.GetComponent<BoxCollider>().size.x * Screen.width/ Screen.height; // basically height * screen aspect ratio
-                instPrefab.transform.localScale = Vector3.one * width / 4f;
-                instPrefab.transform.localScale = instPrefab.transform.localScale * (1f / instPrefab.GetComponent<BoxCollider>().size.x);
+                instPrefab.transform.localScale = prevScale;
+                // instPrefab.transform.localScale = Vector3.one * width / 4f;
+                // instPrefab.transform.localScale = instPrefab.transform.localScale * (1f / instPrefab.GetComponent<BoxCollider>().size.x);
                 instPrefab.transform.Rotate(new Vector3(-20, 0, 0), Space.Self);
                 instPrefab.SetActive(true);
                 currentItem = instPrefab;
@@ -226,9 +233,9 @@ namespace Spaces {
             } else {
                 GameObject currentAsset = Resources.Load<GameObject>("Worlds/" + item.location) as GameObject;
                 GameObject instPrefab = Instantiate(currentAsset);
-                instPrefab.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
+                instPrefab.transform.localScale = new Vector3(0.15f, 0.15f, 0.15f);
                 instPrefab.transform.SetParent(ObjectHolder);
-                instPrefab.transform.localPosition = new Vector3(-0.4f, 1f, 0);
+                instPrefab.transform.localPosition = new Vector3(-0.8f, 1.5f, -3);
                 float width = instPrefab.GetComponent<BoxCollider>().size.x * Screen.width/ Screen.height; // basically height * screen aspect ratio
                 instPrefab.transform.Rotate(new Vector3(-20, 0, 0), Space.Self);
                 instPrefab.SetActive(true);

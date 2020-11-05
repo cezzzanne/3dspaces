@@ -50,6 +50,7 @@ namespace Spaces {
         private string myUsername = null;
 
         private string myRoomID;
+        private string currentSkin;
         // world type is based on the type of world the user posseses (3 kinds) // roomID is to join the same photon room based on player id
 
 
@@ -109,6 +110,12 @@ namespace Spaces {
             yield return new WaitForSeconds(1);
             if (!PhotonNetwork.IsConnectedAndReady) {
                 LoadingScreen.SetActive(true);
+                string actualSkin = PlayerPrefs.GetString("CurrentSkin");
+                if (actualSkin != currentSkin) {
+                    GameObject playerPrefab = Resources.Load<GameObject>("Characters/" + currentSkin);
+                    PlayerPrefab = playerPrefab.GetComponent<CharacterScript>();;
+                }
+                currentSkin = actualSkin;
                 PhotonNetwork.ConnectUsingSettings();
                 reconnect = true;
             }
@@ -119,7 +126,7 @@ namespace Spaces {
             currentWorldType = PlayerPrefs.GetString("currentWorldType");
             roomIDToJoin = PlayerPrefs.GetString("currentRoomID");
             myUsername = PlayerPrefs.GetString("username");
-            string currentSkin = PlayerPrefs.GetString("CurrentSkin");
+            currentSkin = PlayerPrefs.GetString("CurrentSkin");
             GameObject playerPrefab = Resources.Load<GameObject>("Characters/" + currentSkin);
             PlayerPrefab = playerPrefab.GetComponent<CharacterScript>();;
             PhotonNetwork.OfflineMode = false;
@@ -144,7 +151,6 @@ namespace Spaces {
         }
 
         public override void OnJoinedRoom() {
-            Debug.Log("successfully joined a room: IN: " + PhotonNetwork.CurrentRoom.Name);
             base.OnJoinedRoom();
             CharacterScript.RefreshInstance(ref LocalPlayer, PlayerPrefab);
             initialConnection = false;
@@ -199,7 +205,7 @@ namespace Spaces {
                 yield return null;
             }
             PlayerPrefs.SetInt("isInPublicWorld", 1);
-            SceneManager.LoadScene("RacingWorld");
+            SceneManager.LoadScene(worldName);
         }
 
         
